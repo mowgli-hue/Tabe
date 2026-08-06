@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tabe — Restaurants & Vendors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0f1a17; --muted:#6b7872; --bg:#f6f5f0; --surface:#ffffff;
+  --line:#ebe7dc; --line-2:#f3efe5;
+  --brand:#1f5a4f; --brand-d:#103a32; --brand-l:#e6efeb;
+  --accent:#d68240; --accent-d:#b56826; --accent-l:#fbeedd;
+  --green:#2e8b57; --green-l:#e3f3ea;
+  --red:#c0492f; --red-l:#f7e6e1;
+  --blue:#3e6ca0; --blue-l:#e7eef7;
+  --amber:#b07024; --amber-l:#fbecd6;
+  --shadow:0 2px 8px rgba(15,26,23,.04), 0 1px 0 rgba(15,26,23,.02);
+  --shadow-h:0 6px 22px rgba(15,26,23,.10), 0 1px 0 rgba(15,26,23,.02);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background:#dee5e1;color:var(--ink);display:flex;justify-content:center;align-items:stretch;font-size:14px;line-height:1.45}
+#app{width:100%;max-width:460px;background:var(--bg);min-height:100vh;display:flex;flex-direction:column;position:relative;box-shadow:0 0 50px rgba(16,58,50,.18)}
+@media(min-width:520px){body{padding:24px 0}#app{min-height:calc(100vh - 48px);border-radius:24px;overflow:hidden}}
+.appbar{color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.appbar.r{background:var(--brand)} .appbar.v{background:var(--brand-d)}
+.appbar .back{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.12);cursor:pointer}
+.appbar .ttl{font-weight:700;font-size:17px;line-height:1.15;letter-spacing:-.01em}
+.appbar .sub{font-size:11px;opacity:.78;margin-top:2px;font-weight:500}
+.appbar .grow{flex:1}
+.appbar .roleseg{font-size:9.5px;font-weight:700;letter-spacing:.6px;background:rgba(255,255,255,.15);padding:5px 8px;border-radius:6px;text-transform:uppercase}
+.appbar .sw{font-size:11px;background:rgba(255,255,255,.13);padding:6px 10px;border-radius:20px;cursor:pointer;font-weight:600}
+.screen{flex:1;overflow-y:auto;padding:16px 14px 100px}
+.screen::-webkit-scrollbar{width:0}
+.hd{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:2px 4px 4px}
+.sub2{font-size:13px;color:var(--muted);margin:0 4px 14px;font-weight:500}
+.sectionlabel{font-size:11px;font-weight:700;letter-spacing:.55px;color:var(--muted);text-transform:uppercase;margin:18px 4px 9px;display:flex;align-items:center;gap:6px}
+.sectionlabel .ct{background:var(--line-2);color:var(--muted);padding:1px 7px;border-radius:8px;font-size:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:11px;box-shadow:var(--shadow);transition:transform .12s,box-shadow .12s}
+.card.tap{cursor:pointer} .card.tap:hover{box-shadow:var(--shadow-h)} .card.tap:active{transform:scale(.99)}
+.row{display:flex;align-items:center;gap:12px}
+.avatar{width:44px;height:44px;border-radius:12px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;font-weight:700}
+.avatar.sm{width:36px;height:36px;font-size:16px;border-radius:10px}
+.avatar.lg{width:52px;height:52px;font-size:22px;border-radius:14px}
+.avatar.grad{background-image:linear-gradient(135deg,var(--g1,#2b6a5d),var(--g2,#103a32))}
+.nm{font-weight:600;font-size:14.5px;letter-spacing:-.01em}
+.meta{font-size:12px;color:var(--muted);margin-top:2px;font-weight:500}
+.right{margin-left:auto;text-align:right}
+.right .amt{font-weight:700;font-size:15px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.right .lbl{font-size:10px;color:var(--muted);font-weight:500;margin-top:1px}
+.owed{color:var(--red)} .clear{color:var(--green)}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:20px;background:var(--line-2);color:var(--muted)}
+.pill.amber{background:var(--amber-l);color:var(--amber)} .pill.blue{background:var(--blue-l);color:var(--blue)}
+.pill.green{background:var(--green-l);color:var(--green)} .pill.red{background:var(--red-l);color:var(--red)}
+.pill.brand{background:var(--brand-l);color:var(--brand)}
+.pill svg{width:11px;height:11px}
+.summary{color:#fff;border-radius:18px;padding:18px;margin-bottom:6px;position:relative;overflow:hidden}
+.summary.r{background:linear-gradient(135deg,#1f5a4f 0%,#0e3530 100%)}
+.summary.v{background:linear-gradient(135deg,#1b443c 0%,#0a2823 100%)}
+.summary::after{content:"";position:absolute;right:-30px;top:-50px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.04)}
+.summary .lbl{font-size:11.5px;opacity:.85;font-weight:500;letter-spacing:.02em;text-transform:uppercase;position:relative;z-index:1}
+.summary .big{font-size:34px;font-weight:700;margin:5px 0 3px;letter-spacing:-.025em;font-variant-numeric:tabular-nums;position:relative;z-index:1}
+.summary .split{display:flex;gap:18px;margin-top:14px;font-size:11.5px;opacity:.92;flex-wrap:wrap;position:relative;z-index:1}
+.summary .split>div{min-width:60px}
+.summary .split .stl{font-weight:500;opacity:.75}
+.summary .split b{display:block;font-size:16px;margin-top:3px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.015em;opacity:1}
+.item{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:11px 12px;margin-bottom:9px;box-shadow:var(--shadow)}
+.item.oos{opacity:.55}
+.itemico{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f7f3e9,#e9e3d2);display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto}
+.item .nm2{font-weight:600;font-size:14px}
+.item .pr{font-size:12px;color:var(--muted);margin-top:1px;font-weight:500;font-variant-numeric:tabular-nums}
+.stepper{margin-left:auto;display:flex;align-items:center;gap:7px}
+.stepper button{width:30px;height:30px;border-radius:9px;border:none;font-size:18px;font-weight:700;cursor:pointer;background:var(--brand-l);color:var(--brand);display:flex;align-items:center;justify-content:center}
+.stepper button.add{background:var(--brand);color:#fff;width:auto;padding:0 14px;font-size:13px;font-weight:600;height:30px}
+.stepper .qty{min-width:14px;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.iconbtn{border:none;background:var(--line-2);color:var(--ink);border-radius:9px;padding:7px 10px;font-size:11.5px;font-weight:600;cursor:pointer;margin-left:5px;display:inline-flex;align-items:center;gap:5px}
+.iconbtn:hover{background:var(--brand-l);color:var(--brand)}
+.iconbtn.red{background:var(--red-l);color:var(--red)} .iconbtn.green{background:var(--green-l);color:var(--green)}
+.iconbtn svg{width:13px;height:13px}
+.offer{background:linear-gradient(135deg,#fdf1df 0%,#f8e3c0 100%);border:1px solid #efd6b1;border-radius:16px;padding:14px;margin-bottom:11px}
+.offer .tag{font-size:9.5px;font-weight:700;color:#fff;background:var(--accent);padding:4px 9px;border-radius:20px;letter-spacing:.5px;display:inline-block}
+.offer .ot{font-weight:700;font-size:15px;margin-top:9px;color:#5e3b15}
+.offer .od{font-size:12.5px;color:#8a6a3e;margin-top:4px;line-height:1.4}
+.offer .ov{font-size:11px;color:var(--accent-d);font-weight:600;margin-top:7px}
+.led{display:flex;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line-2);font-size:13px}
+.led:last-child{border-bottom:none}
+.led .ld{flex:1} .led .lt{font-weight:600;font-size:13px}
+.led .ls{font-size:11px;color:var(--muted);margin-top:1px;font-weight:500}
+.led .lv{font-weight:700;font-variant-numeric:tabular-nums}
+.bill{color:var(--red)} .pay{color:var(--green)}
+.btn{display:flex;width:100%;border:none;border-radius:12px;padding:13px;font-size:14.5px;font-weight:600;cursor:pointer;text-align:center;margin-top:8px;font-family:inherit;align-items:center;justify-content:center;gap:6px}
+.btn.primary{background:var(--brand);color:#fff;box-shadow:0 1px 0 rgba(0,0,0,.05),0 4px 12px rgba(31,90,79,.18)}
+.btn.accent{background:var(--accent);color:#fff;box-shadow:0 1px 0 rgba(0,0,0,.05),0 4px 12px rgba(214,130,64,.22)}
+.btn.ghost{background:transparent;color:var(--brand);border:1.5px solid var(--brand)}
+.btn.dk{background:var(--brand-d);color:#fff}
+.btn.danger{background:var(--red-l);color:var(--red)}
+.btn.sm{padding:9px 12px;font-size:12.5px;width:auto;margin:0}
+.btn:active{transform:translateY(1px);filter:brightness(.96)}
+.btn svg{width:16px;height:16px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;margin-top:10px} .btnrow .btn{margin-top:0;flex:1}
+.fab{position:absolute;right:18px;bottom:88px;color:#fff;border:none;border-radius:30px;padding:13px 18px;font-weight:600;font-size:13.5px;cursor:pointer;z-index:30;box-shadow:0 10px 28px rgba(0,0,0,.22);display:inline-flex;align-items:center;gap:7px;font-family:inherit}
+.fab.accent{background:var(--accent)} .fab.brand{background:var(--brand)}
+.fab svg{width:16px;height:16px}
+.cartbar{position:absolute;left:14px;right:14px;bottom:84px;background:var(--brand);color:#fff;border-radius:14px;padding:13px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(31,90,79,.4);z-index:30;font-weight:600}
+.cartbar .c{background:var(--accent);border-radius:8px;padding:2px 8px;font-weight:700;font-size:13px}
+.cartbar .go{margin-left:auto;font-weight:600}
+.nav{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.94);backdrop-filter:saturate(180%) blur(10px);-webkit-backdrop-filter:saturate(180%) blur(10px);border-top:1px solid var(--line);display:flex;padding:8px 4px 14px;z-index:40}
+.nav .n{flex:1;text-align:center;font-size:10.5px;color:var(--muted);cursor:pointer;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px}
+.nav .n svg{width:21px;height:21px;stroke-width:1.6}
+.nav .n.on{color:var(--brand)}
+.nav.v .n.on{color:var(--accent-d)}
+.badge{display:inline-block;min-width:16px;background:var(--red);color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;vertical-align:top;margin-left:-3px}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:36px 22px;font-weight:500}
+.empty svg{width:96px;height:96px;margin:0 auto 14px;display:block;color:var(--brand-l)}
+.empty .et{color:var(--ink);font-weight:600;margin-bottom:4px;font-size:15px}
+.toast{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);background:#0f1a17;color:#fff;padding:11px 18px;border-radius:30px;font-size:13px;font-weight:600;opacity:0;transition:opacity .25s;z-index:200;white-space:nowrap;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.toast.show{opacity:.97}
+.toast.err{background:#7a1f10}
+.modal{position:fixed;inset:0;background:rgba(11,28,24,.55);display:none;align-items:flex-end;justify-content:center;z-index:100;backdrop-filter:blur(2px)}
+.modal.show{display:flex}
+.sheet{background:#fff;width:100%;max-width:460px;border-radius:22px 22px 0 0;padding:22px 18px 30px;max-height:88vh;overflow-y:auto;box-shadow:0 -10px 40px rgba(0,0,0,.2)}
+.sheet h3{font-size:19px;margin-bottom:5px;font-weight:700;letter-spacing:-.015em}
+.sheet p{font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:500}
+.sheet label{font-size:12px;font-weight:600;display:block;margin:14px 2px 6px}
+.sheet input,.sheet select,.sheet textarea{width:100%;padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;background:#fff;font-family:inherit;color:var(--ink)}
+.sheet input:focus,.sheet select:focus,.sheet textarea:focus{outline:none;border-color:var(--brand)}
+.sheet textarea{min-height:64px;resize:vertical}
+.chips{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:8px 13px;border-radius:20px;background:var(--line-2);color:var(--ink);font-weight:600;cursor:pointer;border:1.5px solid transparent}
+.chip.sel{background:var(--brand);color:#fff;border-color:var(--brand)}
+.tabs{display:flex;background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:11px;box-shadow:var(--shadow)}
+.tabs .tab{flex:1;text-align:center;font-size:12px;font-weight:600;padding:9px 4px;border-radius:9px;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:4px}
+.tabs .tab.on{background:var(--brand);color:#fff}
+.tabs .tab .ct{background:rgba(255,255,255,.25);padding:0 6px;border-radius:8px;font-size:10.5px}
+.tabs .tab:not(.on) .ct{background:var(--line-2);color:var(--muted)}
+.search{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--line);border-radius:11px;font-size:13.5px;background:#fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7872' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><line x1='21' y1='21' x2='16.65' y2='16.65'/></svg>") 12px center no-repeat;margin-bottom:10px;font-family:inherit}
+/* Auth screens */
+.auth{flex:1;display:flex;flex-direction:column;background:#fff;min-height:100vh}
+.auth .hero{background:linear-gradient(155deg,#1f5a4f 0%,#0e3530 100%);color:#fff;padding:54px 26px 38px;text-align:center;position:relative;overflow:hidden}
+.auth .hero::after{content:"";position:absolute;right:-60px;top:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.04)}
+.auth .hero::before{content:"";position:absolute;left:-50px;bottom:-60px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.025)}
+.auth .lg{font-family:'DM Serif Display',Georgia,serif;font-size:62px;letter-spacing:-.02em;line-height:1;font-weight:400;position:relative;z-index:1}
+.auth .lg span{color:#f1c592}
+.auth .tag{font-size:13.5px;opacity:.88;margin-top:8px;font-weight:500;position:relative;z-index:1}
+.auth .body{flex:1;padding:24px 20px;background:var(--bg);overflow-y:auto}
+.auth .switch{display:flex;background:#fff;border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:18px;box-shadow:var(--shadow)}
+.auth .switch div{flex:1;text-align:center;padding:10px;font-weight:600;border-radius:9px;cursor:pointer;color:var(--muted);font-size:13.5px}
+.auth .switch div.on{background:var(--brand);color:#fff}
+.auth .roles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.auth .roles .rc{padding:12px;border:1.5px solid var(--line);border-radius:12px;text-align:center;cursor:pointer;background:#fff;font-weight:600;font-size:13px}
+.auth .roles .rc.sel{border-color:var(--brand);background:var(--brand-l);color:var(--brand-d)}
+.auth .roles .rc div{font-size:22px;margin-bottom:4px}
+.auth .demo{background:var(--brand-l);border:1px solid #cee0d9;border-radius:12px;padding:13px;margin-top:18px;font-size:12.5px;color:var(--brand-d);line-height:1.5}
+.auth .demo b{font-weight:700}
+.auth .demo .btnrow{margin-top:9px}
+.actrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line-2);font-size:13px}
+.actrow:last-child{border-bottom:none}
+.actrow .ico{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background:var(--brand-l);color:var(--brand)}
+.actrow .ico.green{background:var(--green-l);color:var(--green)}
+.actrow .ico.amber{background:var(--amber-l);color:var(--amber)}
+.actrow .ico.blue{background:var(--blue-l);color:var(--blue)}
+.actrow .ico svg{width:15px;height:15px}
+.actrow .at{font-weight:600;font-size:13px}
+.actrow .as{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500}
+.actrow .av{margin-left:auto;font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.qact{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:4px}
+.qact .card{margin-bottom:0;padding:13px}
+.qact .qico{width:32px;height:32px;border-radius:9px;background:var(--brand-l);color:var(--brand);display:flex;align-items:center;justify-content:center;margin-bottom:6px}
+.qact .qico svg{width:17px;height:17px}
+.strip{display:flex;gap:9px;overflow-x:auto;padding:0 0 6px;margin:0 -4px 6px;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.scard{flex:0 0 auto;width:180px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px;cursor:pointer;box-shadow:var(--shadow)}
+.scard .sd{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.scard .sn{font-weight:600;font-size:13.5px;margin-top:4px}
+.scard .sm2{font-size:11.5px;color:var(--muted);margin-top:2px;font-weight:500}
+.scard .sv{font-weight:700;font-size:14px;margin-top:7px;font-variant-numeric:tabular-nums}
+.pcard{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:9px;box-shadow:var(--shadow)}
+.pcard.low{border-color:#f0b39a;background:linear-gradient(180deg,#fbf1ec 0%,#fff 60%)}
+.pbar{height:6px;background:var(--line-2);border-radius:6px;overflow:hidden;margin-top:7px}
+.pbar .fill{height:100%;background:var(--brand);border-radius:6px;transition:width .3s}
+.pcard.low .pbar .fill{background:var(--red)}
+.bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.barrow{display:grid;grid-template-columns:96px 1fr 60px;align-items:center;gap:10px;font-size:12.5px}
+.barrow .bl{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barrow .bb{height:9px;background:var(--line-2);border-radius:6px;overflow:hidden}
+.barrow .bb .bf{height:100%;background:linear-gradient(90deg,var(--brand),#3a7d6f);border-radius:6px}
+.barrow .bv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.notes{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.note{padding:9px 11px;border-radius:11px;font-size:12.5px;max-width:88%;line-height:1.4}
+.note.r{background:var(--brand-l);color:var(--brand-d);align-self:flex-start;border-bottom-left-radius:4px}
+.note.v{background:var(--accent-l);color:#5e3b15;align-self:flex-end;border-bottom-right-radius:4px}
+.note .nb{font-weight:600;font-size:10.5px;opacity:.8;margin-bottom:3px;text-transform:uppercase}
+.noteform{display:flex;gap:6px;margin-top:9px}
+.noteform input{flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:11px;font-size:13.5px;font-family:inherit}
+.noteform button{border:none;background:var(--brand);color:#fff;border-radius:11px;padding:0 14px;font-weight:600;cursor:pointer;font-family:inherit}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div id="app"><div class="empty" style="margin-top:120px"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:18px">Loading Tabe…</div></div></div>
+  <div class="toast" id="toast"></div>
+  <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<script>
+"use strict";
+
+/* ========== ICONS ========== */
+const ICN = {
+  home:'<path d="M3 9.5L12 2l9 7.5V20a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2z"/>',
+  package:'<path d="M16.5 9.4L7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05"/><path d="M12 22.08V12"/>',
+  book:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  tag:'<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><circle cx="7" cy="7" r="1.5"/>',
+  truck:'<path d="M3 4h11v11H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="6.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+  bar:'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.06A1.65 1.65 0 0 0 10 4.6V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  edit:'<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/>',
+  back:'<polyline points="15 18 9 12 15 6"/>',
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  dollar:'<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  send:'<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+  chevron:'<polyline points="9 18 15 12 9 6"/>',
+  inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  alert:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+  refresh:'<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  trending:'<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+};
+function icon(name,size){ size=size||18; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+(ICN[name]||"")+'</svg>'; }
+function emptySvg(){ return '<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><ellipse cx="100" cy="140" rx="64" ry="8" fill="#e6efeb"/><rect x="60" y="58" width="80" height="68" rx="10" fill="#fff" stroke="#1f5a4f" stroke-width="2"/><path d="M60 78 L100 95 L140 78" stroke="#1f5a4f" stroke-width="2"/><rect x="76" y="46" width="48" height="20" rx="4" fill="#d68240"/><circle cx="100" cy="30" r="4" fill="#d68240"/></svg>'; }
+
+/* ========== STATE ========== */
+const $=id=>document.getElementById(id);
+const money=n=>"$"+(Math.round(Number(n||0)*100)/100).toFixed(2);
+const VG_COLORS=[["#2e8b57","#1d5e3a"],["#d68240","#a45316"],["#3e6ca0","#264c75"],["#8a4b8f","#5a2c5e"],["#b5532f","#7a3318"]];
+function gradFor(id){ const i=Math.abs(hashCode(id||""))%VG_COLORS.length; return VG_COLORS[i]; }
+function hashCode(s){ let h=0; for(let i=0;i<s.length;i++){ h=((h<<5)-h)+s.charCodeAt(i); h|=0; } return h; }
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function dateNum(s){ if(!s) return 0; const m=s.split(" "); return MONTHS.indexOf(m[0])*40+parseInt(m[1]||"0",10); }
+function today(){ const d=new Date(); return MONTHS[d.getMonth()]+" "+d.getDate(); }
+
+let token=localStorage.getItem("tabe_token")||null;
+let me=null;
+let state={ vendors:[], restaurants:[], orders:[], payments:[], pantry:[], offers:[], ledger:{}, vendorDetails:{} };
+let route={view:"loading"};
+let cart={};
+let authMode="login", authRole="restaurant";
+let orderFilter="All", orderSearch="", custSort="balance";
+
+/* ========== API ========== */
+async function api(method,path,body){
+  const opts={method:method, headers:{}};
+  if(body){ opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(body); }
+  if(token) opts.headers["Authorization"]="Bearer "+token;
+  const r=await fetch(path,opts);
+  let data=null; try{ data=await r.json(); }catch{}
+  if(!r.ok) throw new Error((data&&data.error)||("HTTP "+r.status));
+  return data;
+}
+
+/* ========== AUTH ========== */
+async function tryRestoreSession(){
+  if(!token){ route={view:"auth"}; render(); return; }
+  try{ const r=await api("GET","/api/me"); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); }
+  catch{ token=null; localStorage.removeItem("tabe_token"); route={view:"auth"}; render(); }
+}
+async function doLogin(email,password){
+  try{ const r=await api("POST","/api/login",{email:email,password:password}); token=r.token; localStorage.setItem("tabe_token",token); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); }
+  catch(e){ toast(e.message,true); }
+}
+async function doSignup(payload){
+  try{ const r=await api("POST","/api/signup",payload); token=r.token; localStorage.setItem("tabe_token",token); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); toast("Welcome to Tabe!"); }
+  catch(e){ toast(e.message,true); }
+}
+function logout(){ token=null; localStorage.removeItem("tabe_token"); me=null; state={vendors:[],restaurants:[],orders:[],payments:[],pantry:[],offers:[],ledger:{},vendorDetails:{}}; cart={}; route={view:"auth"}; authMode="login"; render(); }
+
+async function refreshAll(){
+  const [v,r,o,p,offs] = await Promise.all([
+    api("GET","/api/vendors"),
+    api("GET","/api/restaurants"),
+    api("GET","/api/orders"),
+    api("GET","/api/payments"),
+    api("GET","/api/offers")
+  ]);
+  state.vendors=v.vendors; state.restaurants=r.restaurants; state.orders=o.orders; state.payments=p.payments; state.offers=offs.offers;
+  if(me.role==="restaurant"){
+    const pn=await api("GET","/api/pantry"); state.pantry=pn.pantry;
+  }
+  const led=await api("GET","/api/ledger"); state.ledger={}; led.ledger.forEach(x=>{ state.ledger[x.counterpartyId]=x.balance; });
+}
+async function loadVendorDetail(id){
+  if(state.vendorDetails[id]) return state.vendorDetails[id];
+  const r=await api("GET","/api/vendors/"+id);
+  state.vendorDetails[id]={vendor:r.vendor,items:r.items,offers:r.offers};
+  return state.vendorDetails[id];
+}
+
+/* ========== HELPERS ========== */
+function vById(id){ return state.vendors.find(v=>v.id===id); }
+function rById(id){ return state.restaurants.find(r=>r.id===id); }
+function oById(id){ return state.orders.find(o=>o.id===id); }
+function balanceWith(cpId){ return state.ledger[cpId]||0; }
+function statusPill(st){ const m={Pending:"amber",Confirmed:"blue",Delivered:"green",Declined:""}; return '<span class="pill '+m[st]+'">'+st+'</span>'; }
+
+/* ========== RENDER ROOT ========== */
+function render(){
+  const app=$("app");
+  if(route.view==="loading"){ app.innerHTML='<div class="empty" style="margin-top:120px"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:18px">Loading…</div></div>'; return; }
+  if(route.view==="auth"){ app.innerHTML=authHTML(); return; }
+  if(!me){ route={view:"auth"}; return render(); }
+  let body="",bar="",nav="",float="";
+  if(me.role==="restaurant"){ const out=renderRestaurant(); body=out.body;bar=out.bar;nav=out.nav;float=out.float; }
+  else { const out=renderVendor(); body=out.body;bar=out.bar;nav=out.nav;float=out.float; }
+  app.innerHTML=bar+'<div class="screen" id="screen">'+body+'</div>'+(float||"")+nav;
+}
+
+/* ========== AUTH SCREENS ========== */
+function authHTML(){
+  let h='<div class="auth"><div class="hero"><div class="lg">Ta<span>be</span></div><div class="tag">The supply link between restaurants & their vendors</div></div><div class="body">';
+  h+='<div class="switch"><div class="'+(authMode==="login"?"on":"")+'" onclick="setAuthMode(\'login\')">Sign in</div><div class="'+(authMode==="signup"?"on":"")+'" onclick="setAuthMode(\'signup\')">Create account</div></div>';
+  if(authMode==="login"){
+    h+='<label>Email</label><input id="lg_e" type="email" placeholder="you@restaurant.com" autocomplete="email" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%;margin-bottom:0">';
+    h+='<label style="margin-top:10px">Password</label><input id="lg_p" type="password" autocomplete="current-password" placeholder="••••••••" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+    h+='<button class="btn primary" style="margin-top:18px" onclick="submitLogin()">Sign in</button>';
+    h+='<div class="demo"><b>Try the demo</b><br>Or jump in with a pre-seeded account — both passwords are <b>demo123</b>.<div class="btnrow"><button class="btn ghost sm" onclick="demoLogin(\'spice@demo.tabe\')">Sign in as Spice Route (restaurant)</button></div><div class="btnrow"><button class="btn ghost sm" onclick="demoLogin(\'guruji@demo.tabe\')">Sign in as Guruji Foods (vendor)</button></div></div>';
+  } else {
+    h+='<label>I\'m a…</label><div class="roles"><div class="rc '+(authRole==="restaurant"?"sel":"")+'" onclick="setAuthRole(\'restaurant\')"><div>🍽️</div>Restaurant</div><div class="rc '+(authRole==="vendor"?"sel":"")+'" onclick="setAuthRole(\'vendor\')"><div>🏪</div>Vendor</div></div>';
+    h+='<label>'+(authRole==="restaurant"?"Restaurant name":"Business name")+'</label><input id="sg_n" placeholder="'+(authRole==="restaurant"?"e.g. Spice Route Kitchen":"e.g. Guruji Foods")+'" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+    h+='<label>Email</label><input id="sg_e" type="email" placeholder="you@business.com" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+    h+='<label>Password (min 6 chars)</label><input id="sg_p" type="password" placeholder="••••••••" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+    h+='<label>Area / City</label><input id="sg_a" placeholder="e.g. Surrey, BC" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+    if(authRole==="vendor"){
+      h+='<label>Category</label><input id="sg_c" placeholder="e.g. Rice, dal, flour · Wholesale" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+      h+='<label>Order cut-off (optional)</label><input id="sg_co" placeholder="e.g. Order by 4 PM" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+      h+='<label>Delivery days (optional)</label><input id="sg_dd" placeholder="e.g. Mon, Wed, Fri" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+      h+='<label>Phone (optional)</label><input id="sg_ph" placeholder="+1 604 …" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
+    }
+    h+='<button class="btn primary" style="margin-top:18px" onclick="submitSignup()">Create my account</button>';
+  }
+  h+='</div></div>';
+  return h;
+}
+function setAuthMode(m){ authMode=m; render(); }
+function setAuthRole(r){ authRole=r; render(); }
+function submitLogin(){ const e=$("lg_e").value.trim(); const p=$("lg_p").value; if(!e||!p){ toast("Email and password required",true); return; } doLogin(e,p); }
+function demoLogin(email){ doLogin(email,"demo123"); }
+function submitSignup(){
+  const role=authRole;
+  const body={role:role, name:$("sg_n").value.trim(), email:$("sg_e").value.trim(), password:$("sg_p").value, area:$("sg_a").value.trim(), emoji:(role==="restaurant"?"🍽️":"🏪")};
+  if(!body.name||!body.email||!body.password){ toast("Please fill all required fields",true); return; }
+  if(role==="vendor"){ body.category=$("sg_c").value.trim(); body.cutoff=$("sg_co").value.trim(); body.deliveryDays=$("sg_dd").value.trim(); body.phone=$("sg_ph").value.trim(); }
+  doSignup(body);
+}
+
+/* ========== APP BAR + NAV ========== */
+function appbar(role,title,sub,back){
+  return '<div class="appbar '+(role==="restaurant"?"r":"v")+'">'+(back?'<div class="back" onclick="'+back+'">'+icon("back",18)+'</div>':'')+
+    '<div><div class="ttl">'+title+'</div><div class="sub">'+sub+'</div></div><div class="grow"></div>'+
+    '<span class="roleseg">'+(role==="restaurant"?"Restaurant":"Vendor")+'</span>'+
+    '<span class="sw" onclick="logout()">Log out</span></div>';
+}
+function go(view,opts){ route={view:view,vendorId:(opts&&opts.vendorId)||null,restId:(opts&&opts.restId)||null,orderId:(opts&&opts.orderId)||null}; window.scrollTo(0,0); render(); if(view==="r_vendor"&&route.vendorId) loadVendorDetail(route.vendorId).then(render); }
+
+/* ========== RESTAURANT ========== */
+function restNav(){
+  const tabs=[["r_home","home","Home"],["r_orders","package","Orders"],["r_pantry","list","Pantry"],["r_ledger","book","Ledger"],["r_offers","tag","Offers"]];
+  let h='<div class="nav r">';
+  tabs.forEach(t=>{ const on=(route.view===t[0]||(t[0]==="r_home"&&(route.view==="r_vendor"||route.view==="r_insights"))||(t[0]==="r_orders"&&route.view==="r_cart"));
+    h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+'</div>'; });
+  return h+'</div>';
+}
+function renderRestaurant(){
+  let body="",bar="",float="";
+  if(route.view==="r_vendor"){ const det=state.vendorDetails[route.vendorId]; bar=appbar("restaurant",det?det.vendor.name:"Loading…","Browse & order",'go(\'r_home\')'); }
+  else if(route.view==="r_cart"){ bar=appbar("restaurant","Review order","",'go(\'r_vendor\',{vendorId:route.vendorId})'); }
+  else if(route.view==="r_insights"){ bar=appbar("restaurant","Spend insights","Where your money goes",'go(\'r_home\')'); }
+  else bar=appbar("restaurant",me.name,me.area||"");
+  if(route.view==="r_home") body=rHome();
+  else if(route.view==="r_vendor") body=rVendor();
+  else if(route.view==="r_cart") body=rCart();
+  else if(route.view==="r_orders") body=rOrders();
+  else if(route.view==="r_ledger"){ body=rLedger(); float='<button class="fab brand" onclick="openPayModal(null)">'+icon("plus",16)+'Record payment</button>'; }
+  else if(route.view==="r_offers") body=rOffers();
+  else if(route.view==="r_pantry"){ body=rPantry(); float='<button class="fab accent" onclick="openPantryModal(null)">'+icon("plus",16)+'Add item</button>'; }
+  const c=cartCount();
+  if(c>0 && route.view==="r_vendor"){ float='<div class="cartbar" onclick="go(\'r_cart\',{vendorId:route.vendorId})"><span class="c">'+c+'</span><span>items · '+money(cartTotal())+'</span><span class="go">Review ›</span></div>'; }
+  return {body:body,bar:bar,nav:restNav(),float:float};
+}
+function totalOwedAll(){ return Math.round(Object.values(state.ledger).filter(b=>b>0).reduce((s,b)=>s+b,0)*100)/100; }
+function pantryLow(){ return state.pantry.filter(p=>p.stock<=Math.max(1,Math.floor(p.par*0.5))); }
+function rHome(){
+  const owed=totalOwedAll();
+  const incoming=state.orders.filter(o=>o.status==="Confirmed");
+  const lows=pantryLow();
+  const totalSpent=Math.round(state.orders.filter(o=>o.status==="Confirmed"||o.status==="Delivered").reduce((s,o)=>s+o.total,0)*100)/100;
+  let h='<div class="summary r"><div class="lbl">You owe across all vendors</div><div class="big">'+money(owed)+'</div>'+
+    '<div class="split">'+
+    '<div><div class="stl">Spent total</div><b>'+money(totalSpent)+'</b></div>'+
+    '<div><div class="stl">Vendors</div><b>'+state.vendors.length+'</b></div>'+
+    '<div><div class="stl">Offers</div><b>'+state.offers.length+'</b></div></div></div>';
+  if(lows.length){
+    h+='<div class="sectionlabel">'+icon("alert",13)+'Low in pantry<span class="ct">'+lows.length+'</span></div><div class="strip">';
+    lows.forEach(p=>{ const v=p.vid?vById(p.vid):null;
+      h+='<div class="scard" onclick="'+(v?'go(\'r_vendor\',{vendorId:\''+v.id+'\'})':'go(\'r_pantry\')')+'">'+
+        '<div class="row"><div class="itemico">'+(p.emoji||"📦")+'</div></div>'+
+        '<div class="sn">'+p.name+'</div>'+
+        '<div class="sm2">'+p.stock+'/'+p.par+(v?' · '+v.name.split(" ")[0]:"")+'</div>'+
+        '<div class="sv" style="color:var(--red)">Reorder</div></div>';
+    });
+    h+='</div>';
+  }
+  if(incoming.length){
+    h+='<div class="sectionlabel">'+icon("truck",13)+'Coming in<span class="ct">'+incoming.length+'</span></div><div class="strip">';
+    incoming.forEach(o=>{ const v=vById(o.v);
+      h+='<div class="scard" onclick="openOrderModal(\''+o.id+'\')">'+
+        '<div class="sd">'+o.date+'</div>'+
+        '<div class="sn">'+(v?v.name:"Unknown")+'</div>'+
+        '<div class="sm2">'+o.items.length+' item(s)</div>'+
+        '<div class="sv">'+money(o.total)+'</div></div>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="sectionlabel">Your vendors</div>';
+  if(!state.vendors.length) h+=emptyState("No vendors yet","Once vendors register on Tabe, you can browse them here.");
+  state.vendors.forEach(v=>{ const bal=balanceWith(v.id); const g=gradFor(v.id);
+    h+='<div class="card tap" onclick="go(\'r_vendor\',{vendorId:\''+v.id+'\'})"><div class="row">'+
+      '<div class="avatar grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm">'+v.name+'</div><div class="meta">'+(v.category||"")+'</div>'+
+      (v.cutoff?'<div style="margin-top:6px"><span class="pill">'+icon("clock",10)+v.cutoff+'</span></div>':"")+'</div>'+
+      '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">'+(bal>0?"you owe":"all paid")+'</div></div>'+
+      '</div></div>'; });
+  h+='<div class="sectionlabel">Quick actions</div><div class="qact">';
+  h+='<div class="card tap" onclick="go(\'r_pantry\')"><div class="qico">'+icon("list",17)+'</div><div class="nm">Pantry</div><div class="meta">'+state.pantry.length+' tracked'+(lows.length?' · '+lows.length+' low':"")+'</div></div>';
+  h+='<div class="card tap" onclick="go(\'r_insights\')"><div class="qico">'+icon("bar",17)+'</div><div class="nm">Spend insights</div><div class="meta">By vendor</div></div>';
+  h+='</div><div style="height:14px"></div>';
+  return h;
+}
+function rVendor(){
+  const det=state.vendorDetails[route.vendorId];
+  if(!det) return '<div class="empty"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:14px">Loading vendor…</div></div>';
+  const v=det.vendor; const bal=balanceWith(v.id); const g=gradFor(v.id);
+  let h='<div class="card"><div class="row"><div class="avatar lg grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
+    '<div style="flex:1;min-width:0"><div class="nm" style="font-size:16px">'+v.name+'</div><div class="meta">'+(v.category||"")+'</div>'+
+    '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+(v.cutoff?'<span class="pill">'+icon("clock",10)+v.cutoff+'</span>':"")+(v.deliveryDays?'<span class="pill brand">'+icon("truck",10)+v.deliveryDays+'</span>':"")+'</div></div>'+
+    '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">balance</div></div></div></div>';
+  det.offers.forEach(o=>{ h+='<div class="offer"><span class="tag">OFFER</span><div class="ot">'+escapeHtml(o.title)+'</div><div class="od">'+escapeHtml(o.description||"")+'</div><div class="ov">'+escapeHtml(o.expiry||"")+'</div></div>'; });
+  h+='<div class="sectionlabel">Catalogue<span class="ct">'+det.items.length+'</span></div>';
+  if(!det.items.length) h+=emptyState("No products listed","This vendor hasn't added their catalogue yet.");
+  det.items.forEach(it=>{ const key=v.id+"|"+it.id; const q=cart[key]?cart[key].q:0;
+    h+='<div class="item'+(it.stock===false?" oos":"")+'"><div class="itemico">'+(it.e||"📦")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm2">'+escapeHtml(it.n)+'</div>'+
+      '<div class="pr">'+money(it.p)+(it.stock===false?' · <span class="pill red">Out of stock</span>':"")+'</div></div>'+
+      '<div class="stepper">'+(it.stock===false?'':(q>0?'<button onclick="dec(\''+key+'\')">−</button><span class="qty">'+q+'</span><button class="add" style="width:30px;padding:0" onclick="inc(\''+key+'\')">+</button>':'<button class="add" onclick="inc(\''+key+'\')">'+icon("plus",13)+'Add</button>'))+'</div></div>'; });
+  h+='<div style="height:70px"></div>';
+  return h;
+}
+function inc(key){ if(!cart[key]){ const[vid,iid]=key.split("|"); const det=state.vendorDetails[vid]; const it=det.items.find(x=>x.id===iid); cart[key]={n:it.n,p:it.p,q:0,vid:vid}; } cart[key].q++; render(); }
+function dec(key){ if(cart[key]){ cart[key].q--; if(cart[key].q<=0) delete cart[key]; } render(); }
+function cartItems(){ return Object.keys(cart).map(k=>Object.assign({key:k},cart[k])); }
+function cartCount(){ return cartItems().reduce((s,x)=>s+x.q,0); }
+function cartTotal(){ return Math.round(cartItems().reduce((s,x)=>s+x.p*x.q,0)*100)/100; }
+function rCart(){
+  const items=cartItems(); if(!items.length) return emptyState("Your order is empty","Add items from a vendor's catalogue.");
+  const vid=items[0].vid, v=vById(vid);
+  let h='<div class="hd">'+v.name+'</div><div class="sub2">Review and send your order</div><div class="card">';
+  items.forEach(i=>{ h+='<div class="led"><div class="ld"><div class="lt">'+escapeHtml(i.n)+'</div><div class="ls">'+i.q+' × '+money(i.p)+'</div></div><div class="lv">'+money(i.p*i.q)+'</div></div>'; });
+  h+='</div>';
+  if(v.minOrder>0 && cartTotal()<v.minOrder) h+='<div class="card" style="background:var(--amber-l);border-color:#f0dcc1"><div class="row"><div style="color:var(--amber)">'+icon("alert",18)+'</div><div class="meta" style="color:#8a6a3e">'+v.name+' has a minimum of '+money(v.minOrder)+'. You\'re at '+money(cartTotal())+'.</div></div></div>';
+  h+='<div class="card" style="background:var(--brand-l);border-color:#cee0d9"><div class="led" style="border:none"><div class="ld"><div class="lt" style="font-size:15px">Order total</div><div class="ls">Sent to '+v.name+' to confirm</div></div><div class="lv" style="font-size:18px">'+money(cartTotal())+'</div></div></div>';
+  h+='<button class="btn accent" onclick="placeOrder()">'+icon("send",16)+'Send order to '+v.name+'</button>'+
+     '<button class="btn ghost" onclick="go(\'r_vendor\',{vendorId:\''+vid+'\'})">Keep adding</button><div style="height:60px"></div>';
+  return h;
+}
+async function placeOrder(){
+  const items=cartItems(); if(!items.length) return; const vid=items[0].vid;
+  const payload={vendorId:vid, items:items.map(i=>({name:i.n,qty:i.q,price:i.p}))};
+  try{ await api("POST","/api/orders",payload); cart={}; toast("Order sent — waiting for vendor to confirm"); await refreshAll(); go("r_orders"); }
+  catch(e){ toast(e.message,true); }
+}
+function rOrders(){
+  let h='<div class="hd">Orders & bills</div><div class="sub2">Every order is logged automatically</div>';
+  if(!state.orders.length) return h+emptyState("No orders yet","Place your first order from a vendor.");
+  state.orders.forEach(o=>{ const v=vById(o.v)||{name:"Unknown vendor",emoji:"🏪"}; const g=gradFor(o.v);
+    h+='<div class="card tap"><div class="row" onclick="openOrderModal(\''+o.id+'\')"><div class="avatar sm grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm">'+v.name+' '+statusPill(o.status)+'</div>'+
+      '<div class="meta">'+o.date+' · '+o.items.length+' item(s)'+(o.notes&&o.notes.length?' · '+o.notes.length+' note(s)':"")+'</div></div>'+
+      '<div class="right"><div class="amt">'+money(o.total)+'</div></div></div>'+
+      '<div style="margin-top:8px;font-size:11.5px;color:var(--muted)">'+o.items.map(i=>i.qty+"× "+escapeHtml(i.name)).join(" · ")+'</div>'+
+      (o.status==="Confirmed"?'<div class="btnrow" style="margin-top:10px"><button class="btn primary sm" onclick="markReceived(\''+o.id+'\')">'+icon("check",14)+'Mark received</button></div>':"")+'</div>';
+  });
+  return h;
+}
+async function markReceived(id){ try{ await api("PATCH","/api/orders/"+id+"/status",{status:"Delivered"}); await refreshAll(); toast("Delivery received ✓"); render(); }catch(e){ toast(e.message,true); } }
+function rLedger(){
+  let h='<div class="summary r"><div class="lbl">Total outstanding</div><div class="big">'+money(totalOwedAll())+'</div>'+
+    '<div class="split"><div style="opacity:.9">Running ledger — in sync with each vendor.</div></div></div>';
+  h+='<div class="sectionlabel">Balances by vendor</div>';
+  state.vendors.forEach(v=>{ const bal=balanceWith(v.id);
+    const bills=state.orders.filter(o=>o.v===v.id&&(o.status==="Confirmed"||o.status==="Delivered"));
+    const pays=state.payments.filter(p=>p.v===v.id);
+    const lines=bills.map(b=>({d:b.date,t:b.id.toUpperCase(),v:b.total,k:"bill"})).concat(pays.map(p=>({d:p.date,t:"Payment · "+p.method,v:p.amount,k:"pay"})))
+      .sort((a,b)=>dateNum(b.d)-dateNum(a.d));
+    const g=gradFor(v.id);
+    h+='<div class="card tap" onclick="toggleLed(\''+v.id+'\')"><div class="row"><div class="avatar grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
+      '<div><div class="nm">'+v.name+'</div><div class="meta">'+bills.length+' bill(s) · '+pays.length+' payment(s)</div></div>'+
+      '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">'+(bal>0?"outstanding":"all clear")+'</div></div></div>'+
+      '<div id="led_'+v.id+'" style="display:none;margin-top:10px;border-top:1px solid var(--line-2);padding-top:4px">'+
+      (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":"pay")+'">'+(x.k==="bill"?"+":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+
+      '<button class="btn primary sm" style="width:100%;margin-top:10px" onclick="event.stopPropagation();openPayModal(\''+v.id+'\')">'+icon("dollar",14)+'Pay '+v.name.split(" ")[0]+'</button></div></div>';
+  });
+  h+='<div style="height:70px"></div>';
+  return h;
+}
+function toggleLed(id){ const e=$("led_"+id); if(e) e.style.display=e.style.display==="none"?"block":"none"; }
+function rOffers(){
+  let h='<div class="hd">Offers</div><div class="sub2">Deals from vendors on Tabe</div>';
+  if(!state.offers.length) return h+emptyState("No live offers","Check back later.");
+  state.offers.forEach(o=>{
+    h+='<div class="offer"><span class="tag">'+escapeHtml(o.vendor_name||"")+'</span><div class="ot">'+escapeHtml(o.title)+'</div><div class="od">'+escapeHtml(o.description||"")+'</div><div class="ov">'+escapeHtml(o.expiry||"")+'</div>'+
+      '<button class="btn primary sm" style="width:100%;margin-top:10px" onclick="go(\'r_vendor\',{vendorId:\''+o.vendor_id+'\'})">Browse vendor</button></div>';
+  });
+  return h;
+}
+function rPantry(){
+  let h='<div class="hd">Pantry</div><div class="sub2">Track what you keep in stock — get alerted when low</div>';
+  if(!state.pantry.length) return h+emptyState("No pantry items yet","Tap + to add things you reorder regularly.");
+  const lows=pantryLow();
+  if(lows.length) h+='<div class="card" style="background:var(--red-l);border-color:#f0b39a"><div class="row"><div style="color:var(--red)">'+icon("alert",18)+'</div><div><div class="nm" style="color:var(--red)">Low on '+lows.length+' item(s)</div><div class="meta">Time to reorder</div></div></div></div>';
+  state.pantry.forEach(p=>{ const v=p.vid?vById(p.vid):null; const pct=Math.min(100,Math.round((p.stock/Math.max(1,p.par))*100));
+    const low=p.stock<=Math.max(1,Math.floor(p.par*0.5));
+    h+='<div class="pcard'+(low?" low":"")+'"><div class="row"><div class="itemico">'+(p.emoji||"📦")+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="nm2">'+escapeHtml(p.name)+'</div>'+
+      '<div class="pr">'+p.stock+' of '+p.par+' on hand'+(v?" · "+v.name:"")+'</div></div>'+
+      '<button class="iconbtn" onclick="openPantryModal(\''+p.id+'\')">'+icon("edit",13)+'</button></div>'+
+      '<div class="pbar"><div class="fill" style="width:'+pct+'%"></div></div>'+
+      (v?'<button class="btn ghost sm" style="width:100%;margin-top:9px" onclick="go(\'r_vendor\',{vendorId:\''+v.id+'\'})">Reorder from '+v.name.split(" ")[0]+'</button>':"")+
+      '</div>';
+  });
+  h+='<div style="height:80px"></div>';
+  return h;
+}
+function rInsights(){
+  const map={};
+  state.orders.filter(o=>o.status==="Confirmed"||o.status==="Delivered").forEach(o=>{ map[o.v]=(map[o.v]||0)+o.total; });
+  const data=Object.entries(map).map(([vid,sum])=>({v:vById(vid),sum:sum})).filter(x=>x.v).sort((a,b)=>b.sum-a.sum);
+  const total=data.reduce((s,x)=>s+x.sum,0);
+  const max=data.length?data[0].sum:1;
+  let h='<div class="summary r"><div class="lbl">Total spent on supplies</div><div class="big">'+money(total)+'</div>'+
+    '<div class="split"><div><div class="stl">Vendors used</div><b>'+data.length+'</b></div></div></div>';
+  h+='<div class="sectionlabel">By vendor</div>';
+  if(!data.length) return h+emptyState("No spend yet","Place an order to see insights.");
+  h+='<div class="card"><div class="bars">';
+  data.forEach(x=>{ const w=Math.round((x.sum/max)*100);
+    h+='<div class="barrow"><div class="bl">'+escapeHtml(x.v.name)+'</div><div class="bb"><div class="bf" style="width:'+w+'%"></div></div><div class="bv">'+money(x.sum)+'</div></div>'; });
+  h+='</div></div>';
+  return h;
+}
+
+/* ========== VENDOR ========== */
+function venNav(){
+  const tabs=[["v_home","home","Home"],["v_orders","package","Orders"],["v_catalogue","list","Catalogue"],["v_customers","users","Customers"],["v_offers","tag","Offers"]];
+  let h='<div class="nav v">'; const pend=state.orders.filter(o=>o.status==="Pending").length;
+  tabs.forEach(t=>{ const on=route.view===t[0]||(t[0]==="v_customers"&&route.view==="v_customer");
+    h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+(t[0]==="v_orders"&&pend?'<span class="badge">'+pend+'</span>':"")+'</div>'; });
+  return h+'</div>';
+}
+function renderVendor(){
+  let body="",bar="",float="";
+  if(route.view==="v_customer"){ const r=rById(route.restId); bar=appbar("vendor",r?r.name:"Customer","Customer ledger",'go(\'v_customers\')'); }
+  else bar=appbar("vendor",me.name,(me.category||"").split(" · ")[0]);
+  if(route.view==="v_home") body=vHome();
+  else if(route.view==="v_orders") body=vOrders();
+  else if(route.view==="v_catalogue"){ body=vCatalogue(); float='<button class="fab accent" onclick="openProductModal(null)">'+icon("plus",16)+'Add product</button>'; }
+  else if(route.view==="v_offers"){ body=vOffers(); float='<button class="fab accent" onclick="openOfferModal()">'+icon("plus",16)+'New offer</button>'; }
+  else if(route.view==="v_customers") body=vCustomers();
+  else if(route.view==="v_customer"){ body=vCustomer(); float='<button class="fab brand" onclick="openRecvModal(\''+route.restId+'\')">'+icon("plus",16)+'Record payment</button>'; }
+  return {body:body,bar:bar,nav:venNav(),float:float};
+}
+function vendorReceivables(){ return Math.round(Object.values(state.ledger).filter(b=>b>0).reduce((s,b)=>s+b,0)*100)/100; }
+function vendorBilled(){ return Math.round(state.orders.filter(o=>o.status==="Confirmed"||o.status==="Delivered").reduce((s,o)=>s+o.total,0)*100)/100; }
+function vendorPaid(){ return Math.round(state.payments.reduce((s,p)=>s+p.amount,0)*100)/100; }
+function vendorMyItems(){ const d=state.vendorDetails[me.id]; return d?d.items:[]; }
+function vendorMyOffers(){ const d=state.vendorDetails[me.id]; return d?d.offers:[]; }
+async function ensureMyCatalog(){ if(!state.vendorDetails[me.id]) await loadVendorDetail(me.id); }
+function topCustomer(){
+  const map={}; state.orders.filter(o=>o.status==="Confirmed"||o.status==="Delivered").forEach(o=>{ map[o.r]=(map[o.r]||0)+o.total; });
+  const e=Object.entries(map); if(!e.length) return null; e.sort((a,b)=>b[1]-a[1]); return {r:rById(e[0][0]),v:e[0][1]};
+}
+function vHome(){
+  ensureMyCatalog().then(()=>{ if(route.view==="v_home") render(); });
+  const pend=state.orders.filter(o=>o.status==="Pending");
+  const todays=state.orders.filter(o=>o.status==="Confirmed");
+  const top=topCustomer();
+  const overdue=Object.entries(state.ledger).filter(([_,b])=>b>0).map(([cp,b])=>({r:rById(cp),bal:b})).filter(x=>x.r).sort((a,b)=>b.bal-a.bal);
+  const myItems=vendorMyItems();
+  let h='<div class="summary v"><div class="lbl">To collect (receivables)</div><div class="big">'+money(vendorReceivables())+'</div>'+
+    '<div class="split">'+
+    '<div><div class="stl">Billed</div><b>'+money(vendorBilled())+'</b></div>'+
+    '<div><div class="stl">Paid</div><b>'+money(vendorPaid())+'</b></div>'+
+    '<div><div class="stl">Pending</div><b>'+pend.length+'</b></div>'+
+    '<div><div class="stl">Products</div><b>'+myItems.length+'</b></div></div></div>';
+  if(top){ h+='<div class="sectionlabel">'+icon("trending",13)+'Top customer</div><div class="card"><div class="row"><div class="avatar grad" style="--g1:#2b6a5d;--g2:#103a32">'+(top.r.emoji||"🍽️")+'</div><div><div class="nm">'+escapeHtml(top.r.name)+'</div><div class="meta">Most billed customer</div></div><div class="right"><div class="amt">'+money(top.v)+'</div><div class="lbl">total billed</div></div></div></div>'; }
+  if(pend.length){ h+='<div class="sectionlabel">'+icon("inbox",13)+'New orders<span class="ct">'+pend.length+'</span></div>';
+    pend.forEach(o=>{ const r=rById(o.r)||{name:"Unknown",emoji:"🍽️"};
+      h+='<div class="card"><div class="row" onclick="openOrderModal(\''+o.id+'\')" style="cursor:pointer"><div class="avatar sm grad" style="--g1:#2b6a5d;--g2:#103a32">'+(r.emoji||"🍽️")+'</div>'+
+        '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(r.name)+'</div><div class="meta">'+o.date+' · '+o.items.length+' item(s)</div></div>'+
+        '<div class="right"><div class="amt">'+money(o.total)+'</div>'+statusPill(o.status)+'</div></div>'+
+        '<div class="btnrow"><button class="btn primary sm" onclick="setOrder(\''+o.id+'\',\'Confirmed\')">'+icon("check",14)+'Confirm</button>'+
+        '<button class="btn danger sm" onclick="setOrder(\''+o.id+'\',\'Declined\')">Decline</button></div></div>';
+    });
+  }
+  if(todays.length){ h+='<div class="sectionlabel">'+icon("truck",13)+'Today\'s deliveries<span class="ct">'+todays.length+'</span></div>';
+    todays.forEach(o=>{ const r=rById(o.r)||{name:"Unknown",emoji:"🍽️",area:""};
+      h+='<div class="card"><div class="row" onclick="openOrderModal(\''+o.id+'\')" style="cursor:pointer"><div class="avatar sm grad" style="--g1:#2b6a5d;--g2:#103a32">'+(r.emoji||"🍽️")+'</div>'+
+        '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(r.name)+'</div><div class="meta">'+(r.area||"")+' · '+o.items.length+' item(s)</div></div>'+
+        '<div class="right"><div class="amt">'+money(o.total)+'</div></div></div>'+
+        '<div style="margin-top:8px;font-size:11.5px;color:var(--muted)">'+o.items.map(i=>i.qty+"× "+escapeHtml(i.name)).join(" · ")+'</div>'+
+        '<div class="btnrow"><button class="btn dk sm" style="flex:1" onclick="setOrder(\''+o.id+'\',\'Delivered\')">'+icon("check",14)+'Mark delivered</button></div></div>';
+    });
+  }
+  if(overdue.length){ h+='<div class="sectionlabel">'+icon("alert",13)+'Outstanding accounts<span class="ct">'+overdue.length+'</span></div>';
+    overdue.forEach(x=>{
+      h+='<div class="card tap" onclick="go(\'v_customer\',{restId:\''+x.r.id+'\'})"><div class="row"><div class="avatar sm grad" style="--g1:#b56826;--g2:#7a3318">'+(x.r.emoji||"🍽️")+'</div>'+
+        '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(x.r.name)+'</div><div class="meta">'+(x.r.area||"")+'</div></div>'+
+        '<div class="right"><div class="amt owed">'+money(x.bal)+'</div><div class="lbl">owes you</div></div></div></div>';
+    });
+  }
+  h+='<div class="sectionlabel">Quick actions</div><div class="qact">';
+  h+='<div class="card tap" onclick="go(\'v_catalogue\')"><div class="qico">'+icon("list",17)+'</div><div class="nm">Catalogue</div><div class="meta">'+myItems.length+' products</div></div>';
+  h+='<div class="card tap" onclick="openBulkPriceModal()"><div class="qico">'+icon("trending",17)+'</div><div class="nm">Bulk price update</div><div class="meta">Adjust all at once</div></div>';
+  h+='<div class="card tap" onclick="go(\'v_offers\')"><div class="qico">'+icon("tag",17)+'</div><div class="nm">Offers</div><div class="meta">'+vendorMyOffers().length+' live</div></div>';
+  h+='<div class="card tap" onclick="openProfileModal()"><div class="qico">'+icon("settings",17)+'</div><div class="nm">Business info</div><div class="meta">Hours, delivery</div></div>';
+  h+='</div><div style="height:14px"></div>';
+  return h;
+}
+function vOrders(){
+  const all=state.orders;
+  const counts={All:all.length,Pending:0,Confirmed:0,Delivered:0};
+  all.forEach(o=>{ if(counts[o.status]!=null) counts[o.status]++; });
+  const filtered=all.filter(o=>(orderFilter==="All"||o.status===orderFilter)&&(!orderSearch||((rById(o.r)||{}).name||"").toLowerCase().includes(orderSearch.toLowerCase())));
+  let h='<div class="hd">Orders</div><div class="sub2">Tap any order to see details and take action</div>';
+  h+='<div class="tabs">';
+  ["All","Pending","Confirmed","Delivered"].forEach(t=>{ h+='<div class="tab'+(orderFilter===t?" on":"")+'" onclick="setOrderFilter(\''+t+'\')">'+t+' <span class="ct">'+counts[t]+'</span></div>'; });
+  h+='</div>';
+  h+='<input class="search" placeholder="Search by restaurant…" value="'+orderSearch.replace(/"/g,"&quot;")+'" oninput="orderSearch=this.value;refilter()">';
+  if(!filtered.length) return h+emptyState("No orders match","Try a different filter.");
+  filtered.forEach(o=>{ const r=rById(o.r)||{name:"Unknown",emoji:"🍽️"};
+    h+='<div class="card tap" onclick="openOrderModal(\''+o.id+'\')"><div class="row"><div class="avatar sm grad" style="--g1:#2b6a5d;--g2:#103a32">'+(r.emoji||"🍽️")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(r.name)+' '+statusPill(o.status)+'</div><div class="meta">'+o.date+(o.notes&&o.notes.length?" · "+o.notes.length+" note(s)":"")+'</div></div>'+
+      '<div class="right"><div class="amt">'+money(o.total)+'</div></div></div>'+
+      '<div style="margin-top:8px;font-size:11.5px;color:var(--muted)">'+o.items.map(i=>i.qty+"× "+escapeHtml(i.name)).join(" · ")+'</div></div>';
+  });
+  return h;
+}
+function setOrderFilter(f){ orderFilter=f; render(); }
+function refilter(){ render(); setTimeout(()=>{ const s=document.querySelector(".search"); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } },0); }
+async function setOrder(id,status){ try{ await api("PATCH","/api/orders/"+id+"/status",{status:status}); await refreshAll(); toast("Order "+status.toLowerCase()); closeModal(); render(); }catch(e){ toast(e.message,true); } }
+function vCatalogue(){
+  ensureMyCatalog().then(()=>{ if(route.view==="v_catalogue") render(); });
+  const items=vendorMyItems();
+  const inStock=items.filter(i=>i.stock!==false).length;
+  let h='<div class="hd">Catalogue</div><div class="sub2">'+items.length+' products · '+inStock+' in stock</div>';
+  h+='<div class="btnrow" style="margin-bottom:11px"><button class="btn ghost sm" style="flex:1" onclick="openBulkPriceModal()">'+icon("trending",14)+'Bulk price update</button></div>';
+  if(!items.length) h+=emptyState("No products yet","Tap + to add your first product.");
+  items.forEach(it=>{ const stock=it.stock!==false;
+    h+='<div class="item'+(stock?"":" oos")+'"><div class="itemico">'+(it.e||"📦")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm2">'+escapeHtml(it.n)+'</div><div class="pr">'+money(it.p)+(stock?"":' · <span class="pill red">Out of stock</span>')+'</div></div>'+
+      '<button class="iconbtn '+(stock?"":"green")+'" onclick="toggleStock(\''+it.id+'\','+(!stock)+')">'+(stock?"In stock":"Mark in")+'</button>'+
+      '<button class="iconbtn" onclick="openProductModal(\''+it.id+'\')">'+icon("edit",13)+'</button>'+
+      '<button class="iconbtn red" onclick="delProduct(\''+it.id+'\')">'+icon("trash",13)+'</button></div>';
+  });
+  h+='<div style="height:70px"></div>';
+  return h;
+}
+async function toggleStock(id,toIn){ try{ await api("PATCH","/api/items/"+id,{inStock:toIn}); delete state.vendorDetails[me.id]; await ensureMyCatalog(); toast(toIn?"In stock":"Out of stock"); render(); }catch(e){ toast(e.message,true); } }
+async function delProduct(id){ try{ await api("DELETE","/api/items/"+id); delete state.vendorDetails[me.id]; await ensureMyCatalog(); toast("Product removed"); render(); }catch(e){ toast(e.message,true); } }
+function vOffers(){
+  ensureMyCatalog().then(()=>{ if(route.view==="v_offers") render(); });
+  const offers=vendorMyOffers();
+  let h='<div class="hd">Your offers</div><div class="sub2">Live deals restaurants see</div>';
+  if(!offers.length) h+=emptyState("No offers yet","Tap + to create one.");
+  offers.forEach(o=>{
+    h+='<div class="offer"><span class="tag">LIVE</span><div class="ot">'+escapeHtml(o.title)+'</div><div class="od">'+escapeHtml(o.description||"")+'</div><div class="ov">'+escapeHtml(o.expiry||"")+'</div>'+
+      '<button class="btn danger sm" style="width:100%;margin-top:10px" onclick="delOffer(\''+o.id+'\')">'+icon("trash",13)+'Remove offer</button></div>';
+  });
+  h+='<div style="height:70px"></div>';
+  return h;
+}
+async function delOffer(id){ try{ await api("DELETE","/api/offers/"+id); delete state.vendorDetails[me.id]; await ensureMyCatalog(); await refreshAll(); toast("Offer removed"); render(); }catch(e){ toast(e.message,true); } }
+function vCustomers(){
+  const custs=state.restaurants.map(r=>{ const lastOrder=state.orders.filter(o=>o.r===r.id).sort((a,b)=>dateNum(b.date)-dateNum(a.date))[0]; return {r:r,bal:balanceWith(r.id),last:lastOrder}; }).filter(x=>state.orders.some(o=>o.r===x.r.id));
+  if(custSort==="balance") custs.sort((a,b)=>b.bal-a.bal);
+  else custs.sort((a,b)=>dateNum(b.last?b.last.date:"")-dateNum(a.last?a.last.date:""));
+  let h='<div class="hd">Customers</div><div class="sub2">Restaurants you supply</div>';
+  h+='<div class="tabs"><div class="tab'+(custSort==="balance"?" on":"")+'" onclick="custSort=\'balance\';render()">By balance</div>'+
+    '<div class="tab'+(custSort==="recent"?" on":"")+'" onclick="custSort=\'recent\';render()">By recent</div></div>';
+  if(!custs.length) return h+emptyState("No customers yet","Once restaurants order, they appear here.");
+  custs.forEach(x=>{
+    h+='<div class="card tap" onclick="go(\'v_customer\',{restId:\''+x.r.id+'\'})"><div class="row"><div class="avatar grad" style="--g1:#2b6a5d;--g2:#103a32">'+(x.r.emoji||"🍽️")+'</div>'+
+      '<div><div class="nm">'+escapeHtml(x.r.name)+'</div><div class="meta">'+(x.r.area||"")+(x.last?" · last "+x.last.date:"")+'</div></div>'+
+      '<div class="right"><div class="amt '+(x.bal>0?"owed":"clear")+'">'+(x.bal>0?money(x.bal):"Settled")+'</div><div class="lbl">'+(x.bal>0?"owes you":"all clear")+'</div></div></div></div>';
+  });
+  return h;
+}
+function vCustomer(){
+  const r=rById(route.restId)||{name:"Unknown",emoji:"🍽️",area:""};
+  const bal=balanceWith(r.id);
+  const bills=state.orders.filter(o=>o.r===r.id&&(o.status==="Confirmed"||o.status==="Delivered"));
+  const pays=state.payments.filter(p=>p.r===r.id);
+  const billed=bills.reduce((s,o)=>s+o.total,0), paid=pays.reduce((s,p)=>s+p.amount,0);
+  const lines=bills.map(b=>({d:b.date,t:b.id.toUpperCase(),v:b.total,k:"bill"})).concat(pays.map(p=>({d:p.date,t:"Payment · "+p.method,v:p.amount,k:"pay"}))).sort((a,b)=>dateNum(b.d)-dateNum(a.d));
+  let h='<div class="summary v"><div class="lbl">'+escapeHtml(r.name)+' owes you</div><div class="big">'+money(Math.max(0,bal))+'</div>'+
+    '<div class="split"><div><div class="stl">Billed</div><b>'+money(billed)+'</b></div><div><div class="stl">Paid</div><b>'+money(paid)+'</b></div><div><div class="stl">Bills</div><b>'+bills.length+'</b></div></div></div>';
+  if(bal>0) h+='<button class="btn accent" onclick="sendReminder(\''+r.id+'\')">'+icon("bell",15)+'Send payment reminder</button>';
+  h+='<div class="sectionlabel">Shared ledger</div><div class="card">'+
+    (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":"pay")+'">'+(x.k==="bill"?"+":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+'</div>';
+  h+='<div style="height:70px"></div>';
+  return h;
+}
+function sendReminder(rid){ const r=rById(rid); toast("Reminder sent to "+(r?r.name:"customer")); }
+
+/* ========== MODALS ========== */
+function openModal(html){ $("sheet").innerHTML=html; $("modal").classList.add("show"); }
+function closeModal(){ $("modal").classList.remove("show"); }
+let _payMethod="e-Transfer";
+const METHODS=["Cash","e-Transfer","Cheque","Card"];
+function methodChips(){ return '<div class="chips" id="methodChips">'+METHODS.map(m=>'<div class="chip'+(m===_payMethod?" sel":"")+'" onclick="pickMethod(\''+m+'\')">'+m+'</div>').join("")+'</div>'; }
+function pickMethod(m){ _payMethod=m; document.querySelectorAll("#methodChips .chip").forEach(c=>c.classList.toggle("sel",c.textContent===m)); }
+function openPayModal(vId){ _payMethod="e-Transfer";
+  const opts=state.vendors.map(v=>'<option value="'+v.id+'"'+(v.id===vId?" selected":"")+'>'+escapeHtml(v.name)+' ('+(balanceWith(v.id)>0?money(balanceWith(v.id))+" owed":"settled")+')</option>').join("");
+  openModal('<h3>Record a payment</h3><p>Log a payment you made. Your vendor sees the updated balance instantly.</p>'+
+    '<label>Vendor</label><select id="f_vendor">'+opts+'</select>'+
+    '<label>Amount (CAD)</label><input id="f_amount" type="number" inputmode="decimal" placeholder="0.00">'+
+    '<label>Paid by</label>'+methodChips()+
+    '<button class="btn primary" onclick="submitPay()">Save payment</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitPay(){ const vId=$("f_vendor").value; const amt=parseFloat($("f_amount").value);
+  if(!amt||amt<=0){ toast("Enter an amount",true); return; }
+  try{ await api("POST","/api/payments",{counterpartyId:vId,amount:amt,method:_payMethod}); await refreshAll(); closeModal(); toast("Payment recorded — balance updated"); render(); }catch(e){ toast(e.message,true); }
+}
+function openRecvModal(rId){ _payMethod="e-Transfer"; const r=rById(rId)||{name:"Customer"};
+  openModal('<h3>Record payment received</h3><p>From '+escapeHtml(r.name)+'. The shared balance updates for both of you.</p>'+
+    '<label>Amount received (CAD)</label><input id="f_amount" type="number" inputmode="decimal" placeholder="0.00">'+
+    '<label>Received by</label>'+methodChips()+
+    '<input type="hidden" id="f_rest" value="'+rId+'">'+
+    '<button class="btn primary" onclick="submitRecv()">Save payment</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitRecv(){ const rId=$("f_rest").value; const amt=parseFloat($("f_amount").value);
+  if(!amt||amt<=0){ toast("Enter an amount",true); return; }
+  try{ await api("POST","/api/payments",{counterpartyId:rId,amount:amt,method:_payMethod}); await refreshAll(); closeModal(); toast("Payment recorded ✓"); render(); }catch(e){ toast(e.message,true); }
+}
+function openProductModal(id){ const items=vendorMyItems(); const it=id?items.find(x=>x.id===id):null;
+  openModal('<h3>'+(it?"Edit product":"Add product")+'</h3><p>'+(it?"Update the details below.":"Add an item to your catalogue.")+'</p>'+
+    '<label>Product name</label><input id="f_pn" value="'+(it?escapeAttr(it.n):"")+'" placeholder="e.g. Basmati Rice 20kg">'+
+    '<label>Emoji</label><input id="f_pe" value="'+(it?it.e:"📦")+'" maxlength="2">'+
+    '<label>Price (CAD)</label><input id="f_pp" type="number" inputmode="decimal" value="'+(it?it.p:"")+'" placeholder="0.00">'+
+    '<input type="hidden" id="f_pid" value="'+(id||"")+'">'+
+    '<button class="btn primary" onclick="submitProduct()">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitProduct(){ const id=$("f_pid").value; const n=$("f_pn").value.trim(), e=($("f_pe").value.trim()||"📦"), p=parseFloat($("f_pp").value);
+  if(!n){ toast("Enter a product name",true); return; } if(!p||p<=0){ toast("Enter a price",true); return; }
+  try{ if(id) await api("PATCH","/api/items/"+id,{name:n,emoji:e,price:p}); else await api("POST","/api/items",{name:n,emoji:e,price:p}); delete state.vendorDetails[me.id]; await ensureMyCatalog(); closeModal(); toast("Catalogue updated ✓"); render(); }catch(e2){ toast(e2.message,true); }
+}
+function openOfferModal(){ openModal('<h3>New offer</h3><p>All restaurants on Tabe will see this.</p>'+
+  '<label>Headline</label><input id="f_ot" placeholder="e.g. 10% off Basmati Rice">'+
+  '<label>Details</label><textarea id="f_od" placeholder="Short description"></textarea>'+
+  '<label>Valid until</label><input id="f_oe" placeholder="e.g. Ends May 31">'+
+  '<button class="btn primary" onclick="submitOffer()">Post offer</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitOffer(){ const t=$("f_ot").value.trim(); if(!t){ toast("Enter a headline",true); return; }
+  try{ await api("POST","/api/offers",{title:t,description:$("f_od").value.trim(),expiry:$("f_oe").value.trim()}); delete state.vendorDetails[me.id]; await ensureMyCatalog(); await refreshAll(); closeModal(); toast("Offer posted ✓"); render(); }catch(e){ toast(e.message,true); }
+}
+function openProfileModal(){ const u=me;
+  openModal('<h3>Business info</h3><p>Restaurants see these details on your profile.</p>'+
+    '<label>Business name</label><input id="f_bn" value="'+escapeAttr(u.name)+'">'+
+    '<label>Category</label><input id="f_bc" value="'+escapeAttr(u.category||"")+'">'+
+    '<label>Order cut-off</label><input id="f_bk" value="'+escapeAttr(u.cutoff||"")+'">'+
+    '<label>Delivery days</label><input id="f_bd" value="'+escapeAttr(u.deliveryDays||"")+'">'+
+    '<label>Phone</label><input id="f_bp" value="'+escapeAttr(u.phone||"")+'">'+
+    '<label>Minimum order (CAD)</label><input id="f_bm" type="number" value="'+(u.minOrder||0)+'">'+
+    '<button class="btn primary" onclick="submitProfile()">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitProfile(){
+  const body={name:$("f_bn").value.trim(),category:$("f_bc").value.trim(),cutoff:$("f_bk").value.trim(),deliveryDays:$("f_bd").value.trim(),phone:$("f_bp").value.trim(),minOrder:Math.max(0,parseFloat($("f_bm").value)||0)};
+  try{ const r=await api("PATCH","/api/profile",body); me=r.user; delete state.vendorDetails[me.id]; await refreshAll(); await ensureMyCatalog(); closeModal(); toast("Business info saved ✓"); render(); }catch(e){ toast(e.message,true); }
+}
+function openBulkPriceModal(){ openModal('<h3>Bulk price update</h3><p>Adjust all your prices by a percentage. e.g. +5 for a 5% increase, −3 for 3% off.</p>'+
+  '<label>Change all prices by (%)</label><input id="f_bp" type="number" inputmode="decimal" placeholder="e.g. 5 or -3">'+
+  '<button class="btn primary" onclick="submitBulkPrice()">Apply</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitBulkPrice(){ const pct=parseFloat($("f_bp").value); if(isNaN(pct)){ toast("Enter a number",true); return; }
+  try{ await api("POST","/api/items/bulk-price",{percent:pct}); delete state.vendorDetails[me.id]; await ensureMyCatalog(); closeModal(); toast("Prices updated by "+(pct>0?"+":"")+pct+"%"); render(); }catch(e){ toast(e.message,true); }
+}
+function openPantryModal(id){ const it=id?state.pantry.find(x=>x.id===id):null;
+  const vops=state.vendors.map(v=>'<option value="'+v.id+'"'+(it&&it.vid===v.id?" selected":"")+'>'+escapeHtml(v.name)+'</option>').join("");
+  openModal('<h3>'+(it?"Edit pantry item":"Add pantry item")+'</h3><p>'+(it?"Update what you keep in stock.":"Track something you reorder regularly.")+'</p>'+
+    '<label>Item name</label><input id="f_in" value="'+(it?escapeAttr(it.name):"")+'" placeholder="e.g. Basmati Rice 20kg">'+
+    '<label>Emoji</label><input id="f_ie" value="'+(it?it.emoji:"📦")+'" maxlength="2">'+
+    '<label>Target on hand (par)</label><input id="f_ip" type="number" value="'+(it?it.par:1)+'">'+
+    '<label>Current stock</label><input id="f_ic" type="number" value="'+(it?it.stock:0)+'">'+
+    '<label>Default vendor</label><select id="f_iv"><option value="">— None —</option>'+vops+'</select>'+
+    '<input type="hidden" id="f_iid" value="'+(id||"")+'">'+
+    (id?'<button class="btn danger" onclick="delPantry(\''+id+'\')">'+icon("trash",13)+'Remove item</button>':"")+
+    '<button class="btn primary" onclick="submitPantry()">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+async function submitPantry(){ const id=$("f_iid").value;
+  const n=$("f_in").value.trim(); if(!n){ toast("Enter a name",true); return; }
+  const body={name:n, emoji:$("f_ie").value.trim()||"📦", par:Math.max(1,parseInt($("f_ip").value,10)||1), stock:Math.max(0,parseInt($("f_ic").value,10)||0), vid:$("f_iv").value||null};
+  try{ if(id) await api("PATCH","/api/pantry/"+id,body); else await api("POST","/api/pantry",body); await refreshAll(); closeModal(); toast("Pantry updated ✓"); render(); }catch(e){ toast(e.message,true); }
+}
+async function delPantry(id){ try{ await api("DELETE","/api/pantry/"+id); await refreshAll(); closeModal(); toast("Removed from pantry"); render(); }catch(e){ toast(e.message,true); } }
+
+function openOrderModal(id){ const o=oById(id); if(!o) return;
+  const isVendor=me.role==="vendor"; const cp=isVendor?rById(o.r):vById(o.v); const cpName=cp?cp.name:"Unknown";
+  let h='<h3>Order '+statusPill(o.status)+'</h3><p>'+o.date+' · '+(isVendor?"From "+escapeHtml(cpName):"To "+escapeHtml(cpName))+'</p>';
+  h+='<div class="card" style="background:var(--brand-l);border-color:#cee0d9;margin:8px 0">';
+  o.items.forEach(it=>{ h+='<div class="led"><div class="ld"><div class="lt">'+escapeHtml(it.name)+'</div><div class="ls">'+it.qty+' × '+money(it.price)+'</div></div><div class="lv">'+money(it.qty*it.price)+'</div></div>'; });
+  h+='<div class="led" style="border:none;font-weight:800"><div class="ld"><div class="lt">Order total</div></div><div class="lv">'+money(o.total)+'</div></div></div>';
+  if(isVendor){
+    if(o.status==="Pending") h+='<div class="btnrow"><button class="btn primary" onclick="setOrder(\''+o.id+'\',\'Confirmed\')">'+icon("check",14)+'Confirm</button><button class="btn danger" onclick="setOrder(\''+o.id+'\',\'Declined\')">Decline</button></div>';
+    else if(o.status==="Confirmed") h+='<button class="btn dk" onclick="setOrder(\''+o.id+'\',\'Delivered\')">'+icon("check",14)+'Mark delivered</button>';
+  } else if(o.status==="Confirmed") h+='<button class="btn primary" onclick="markReceived(\''+o.id+'\')">'+icon("check",14)+'Mark received</button>';
+  h+='<label style="margin-top:14px">Notes / messages</label>';
+  h+='<div class="notes">';
+  if(!(o.notes||[]).length) h+='<div class="meta">No notes yet. Add one to send a message.</div>';
+  (o.notes||[]).forEach(n=>{ h+='<div class="note '+(n.a==="R"?"r":"v")+'"><div class="nb">'+(n.a==="R"?(rById(o.r)||{}).name||"Restaurant":(vById(o.v)||{}).name||"Vendor")+' · '+n.d+'</div>'+escapeHtml(n.t)+'</div>'; });
+  h+='</div>';
+  h+='<div class="noteform"><input id="f_note" placeholder="Type a note…" onkeydown="if(event.key===\'Enter\')addNote(\''+o.id+'\')"><button onclick="addNote(\''+o.id+'\')">'+icon("send",14)+'</button></div>';
+  h+='<button class="btn ghost" onclick="closeModal()">Close</button>';
+  openModal(h);
+}
+async function addNote(id){ const t=$("f_note").value.trim(); if(!t) return;
+  try{ await api("POST","/api/orders/"+id+"/notes",{text:t}); await refreshAll(); openOrderModal(id); }catch(e){ toast(e.message,true); }
+}
+
+/* ========== UTIL ========== */
+function escapeHtml(s){ s=s==null?"":String(s); return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
+function emptyState(title,sub){ return '<div class="empty">'+emptySvg()+'<div class="et">'+escapeHtml(title)+'</div>'+escapeHtml(sub)+'</div>'; }
+let _t;
+function toast(msg,isErr){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(isErr?" err":""); clearTimeout(_t); _t=setTimeout(()=>t.className="toast"+(isErr?" err":""),2400); }
+document.addEventListener("click",function(e){ if(e.target&&e.target.id==="modal") closeModal(); });
+
+/* ========== BOOT ========== */
+tryRestoreSession();
+</script>
+</body>
+</html>
