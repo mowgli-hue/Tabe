@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Tabe — Restaurants & Vendors</title>
+<title>Vlink — Restaurants & Vendors</title>
 <meta name="description" content="The supply link between restaurants and their vendors. Order groceries, track balances, run your kitchen.">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#1f5a4f">
@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Tabe">
+<meta name="apple-mobile-web-app-title" content="Vlink">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
@@ -211,7 +211,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helv
 </style>
 </head>
 <body>
-  <div id="app"><div class="empty" style="margin-top:120px"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:18px">Loading Tabe…</div></div></div>
+  <div id="app"><div class="empty" style="margin-top:120px"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:18px">Loading Vlink…</div></div></div>
   <div class="toast" id="toast"></div>
   <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
@@ -288,7 +288,7 @@ async function doLogin(email,password){
   catch(e){ toast(e.message,true); }
 }
 async function doSignup(payload){
-  try{ const r=await api("POST","/api/signup",payload); token=r.token; localStorage.setItem("tabe_token",token); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); toast("Welcome to Tabe!"); }
+  try{ const r=await api("POST","/api/signup",payload); token=r.token; localStorage.setItem("tabe_token",token); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); toast("Welcome to Vlink!"); }
   catch(e){ toast(e.message,true); }
 }
 function logout(){ token=null; localStorage.removeItem("tabe_token"); me=null; state={vendors:[],restaurants:[],orders:[],payments:[],pantry:[],offers:[],ledger:{},vendorDetails:{}}; cart={}; route={view:"auth"}; authMode="login"; render(); }
@@ -335,10 +335,10 @@ function render(){
 
 /* ========== AUTH SCREENS ========== */
 function authHTML(){
-  let h='<div class="auth"><div class="hero"><div class="lg">Ta<span>be</span></div><div class="tag">The supply link between restaurants & their vendors</div></div><div class="body">';
+  let h='<div class="auth"><div class="hero"><div class="lg">V<span>link</span></div><div class="tag">The supply link between restaurants & their vendors</div></div><div class="body">';
   if(inviter){
     h+='<div style="background:var(--accent-l);border:1px solid #efd6b1;border-radius:12px;padding:13px;margin-bottom:16px">'+
-      '<div style="font-family:\'Inter\';font-weight:700;font-size:14px;color:#5e3b15">'+(inviter.emoji||"👋")+' '+escapeHtml(inviter.name)+' invited you to Tabe</div>'+
+      '<div style="font-family:\'Inter\';font-weight:700;font-size:14px;color:#5e3b15">'+(inviter.emoji||"👋")+' '+escapeHtml(inviter.name)+' invited you to Vlink</div>'+
       '<div style="font-size:12.5px;color:#8a6a3e;margin-top:3px;font-weight:500">'+(inviter.role==="vendor"?"They supply restaurants like yours — create your restaurant account to order from them.":"They run a restaurant — create your vendor account to receive their orders.")+'</div></div>';
   }
   h+='<div class="switch"><div class="'+(authMode==="login"?"on":"")+'" onclick="setAuthMode(\'login\')">Sign in</div><div class="'+(authMode==="signup"?"on":"")+'" onclick="setAuthMode(\'signup\')">Create account</div></div>';
@@ -445,7 +445,7 @@ function rHome(){
     h+='</div>';
   }
   h+='<div class="sectionlabel">Your vendors</div>';
-  if(!state.vendors.length) h+=emptyState("No vendors yet","Once vendors register on Tabe, you can browse them here.");
+  if(!state.vendors.length) h+=emptyState("No vendors yet","Once vendors register on Vlink, you can browse them here.");
   state.vendors.forEach(v=>{ const bal=balanceWith(v.id); const g=gradFor(v.id);
     h+='<div class="card tap" onclick="go(\'r_vendor\',{vendorId:\''+v.id+'\'})"><div class="row">'+
       '<div class="avatar grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
@@ -538,7 +538,7 @@ function rLedger(){
 }
 function toggleLed(id){ const e=$("led_"+id); if(e) e.style.display=e.style.display==="none"?"block":"none"; }
 function rOffers(){
-  let h='<div class="hd">Offers</div><div class="sub2">Deals from vendors on Tabe</div>';
+  let h='<div class="hd">Offers</div><div class="sub2">Deals from vendors on Vlink</div>';
   if(!state.offers.length) return h+emptyState("No live offers","Check back later.");
   state.offers.forEach(o=>{
     h+='<div class="offer"><span class="tag">'+escapeHtml(o.vendor_name||"")+'</span><div class="ot">'+escapeHtml(o.title)+'</div><div class="od">'+escapeHtml(o.description||"")+'</div><div class="ov">'+escapeHtml(o.expiry||"")+'</div>'+
@@ -785,7 +785,7 @@ async function submitProduct(){ const id=$("f_pid").value; const n=$("f_pn").val
   if(!n){ toast("Enter a product name",true); return; } if(!p||p<=0){ toast("Enter a price",true); return; }
   try{ if(id) await api("PATCH","/api/items/"+id,{name:n,emoji:e,price:p}); else await api("POST","/api/items",{name:n,emoji:e,price:p}); delete state.vendorDetails[me.id]; await ensureMyCatalog(); closeModal(); toast("Catalogue updated ✓"); render(); }catch(e2){ toast(e2.message,true); }
 }
-function openOfferModal(){ openModal('<h3>New offer</h3><p>All restaurants on Tabe will see this.</p>'+
+function openOfferModal(){ openModal('<h3>New offer</h3><p>All restaurants on Vlink will see this.</p>'+
   '<label>Headline</label><input id="f_ot" placeholder="e.g. 10% off Basmati Rice">'+
   '<label>Details</label><textarea id="f_od" placeholder="Short description"></textarea>'+
   '<label>Valid until</label><input id="f_oe" placeholder="e.g. Ends May 31">'+

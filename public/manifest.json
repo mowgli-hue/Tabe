@@ -1,6 +1,6 @@
 {
-  "name": "Tabe — Restaurants & Vendors",
-  "short_name": "Tabe",
+  "name": "Vlink — Restaurants & Vendors",
+  "short_name": "Vlink",
   "description": "The supply link between restaurants and their vendors. Order groceries, track balances, run your kitchen.",
   "start_url": "/",
   "scope": "/",

@@ -1,7 +1,7 @@
 {
-  "name": "tabe",
+  "name": "vlink",
   "version": "0.1.0",
-  "description": "Tabe — connecting restaurants and their vendors. Ordering, offers, and a running ledger.",
+  "description": "Vlink — connecting restaurants and their vendors. Ordering, offers, and a running ledger.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

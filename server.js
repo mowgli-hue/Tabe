@@ -1,4 +1,4 @@
-// Tabe — Express + SQLite + JWT backend
+// Vlink — Express + SQLite + JWT backend
 // Single-file server. Run: npm install && npm start
 
 const fs = require("fs");
@@ -140,7 +140,7 @@ CREATE INDEX IF NOT EXISTS idx_pantry_restaurant ON pantry(restaurant_id);
 // ===== Email notifications (Resend) =====
 // Set RESEND_API_KEY (and optionally EMAIL_FROM) in env to activate. No-ops silently otherwise.
 const RESEND_API_KEY = process.env.RESEND_API_KEY || null;
-const EMAIL_FROM = process.env.EMAIL_FROM || "Tabe <onboarding@resend.dev>";
+const EMAIL_FROM = process.env.EMAIL_FROM || "Vlink <onboarding@resend.dev>";
 async function sendEmail(to, subject, html) {
   if (!RESEND_API_KEY || !to || to.endsWith("@demo.tabe")) return; // skip demo accounts
   try {
@@ -156,7 +156,7 @@ async function sendEmail(to, subject, html) {
 function emailWrap(title, body) {
   return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
     <div style="background:#1f5a4f;color:#fff;padding:18px 22px;border-radius:12px 12px 0 0">
-      <div style="font-size:22px;font-weight:bold">Tabe</div>
+      <div style="font-size:22px;font-weight:bold">Vlink</div>
     </div>
     <div style="border:1px solid #e5e5e5;border-top:none;padding:22px;border-radius:0 0 12px 12px">
       <h2 style="margin:0 0 10px;font-size:17px;color:#0f1a17">${title}</h2>
@@ -315,10 +315,10 @@ app.post("/api/orders", auth, requireRole("restaurant"), (req, res) => {
   // notify vendor of the new order
   const itemsHtml = items.map(it => `<li>${it.qty} × ${it.name} — $${(it.qty * it.price).toFixed(2)}</li>`).join("");
   sendEmail(v.email, `New order from ${req.user.name} — $${total.toFixed(2)}`,
-    emailWrap("You have a new order on Tabe",
+    emailWrap("You have a new order on Vlink",
       `<p><b>${req.user.name}</b> just placed an order:</p><ul>${itemsHtml}</ul>
        <p><b>Total: $${total.toFixed(2)}</b></p>
-       <p>Open Tabe to confirm it.</p>`));
+       <p>Open Vlink to confirm it.</p>`));
   res.json({ orderId: id, total });
 });
 
@@ -342,7 +342,7 @@ app.patch("/api/orders/:id/status", auth, (req, res) => {
       const msgs = {
         Confirmed: ["Your order was confirmed ✓", `<p><b>${req.user.name}</b> confirmed your order of $${o.total.toFixed(2)}. It's on the schedule.</p>`],
         Declined: ["Your order was declined", `<p><b>${req.user.name}</b> couldn't take your order of $${o.total.toFixed(2)}. Reach out to them or try another vendor.</p>`],
-        Delivered: ["Your order was delivered 📦", `<p><b>${req.user.name}</b> marked your $${o.total.toFixed(2)} order as delivered. The bill is now on your Tabe ledger.</p>`],
+        Delivered: ["Your order was delivered 📦", `<p><b>${req.user.name}</b> marked your $${o.total.toFixed(2)} order as delivered. The bill is now on your Vlink ledger.</p>`],
       };
       const m = msgs[status];
       if (m) sendEmail(rest.email, m[0], emailWrap(m[0], m[1]));
@@ -387,10 +387,10 @@ app.post("/api/payments", auth, (req, res) => {
   db.prepare("INSERT INTO payments (id,vendor_id,restaurant_id,amount,method,date,created_at) VALUES (?,?,?,?,?,?,?)")
     .run(id, vendorId, restaurantId, Math.round(amt * 100) / 100, method || "Cash", today(), new Date().toISOString());
   // notify the counterparty
-  sendEmail(other.email, `Payment of $${amt.toFixed(2)} recorded on Tabe`,
+  sendEmail(other.email, `Payment of $${amt.toFixed(2)} recorded on Vlink`,
     emailWrap("Payment recorded",
       `<p><b>${req.user.name}</b> recorded a payment of <b>$${amt.toFixed(2)}</b> (${method || "Cash"}).</p>
-       <p>Your shared balance has been updated — open Tabe to see the ledger.</p>`));
+       <p>Your shared balance has been updated — open Vlink to see the ledger.</p>`));
   res.json({ paymentId: id });
 });
 
@@ -609,5 +609,5 @@ seedIfEmpty();
 app.get("*", (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Tabe running on port ${PORT}`);
+  console.log(`Vlink running on port ${PORT}`);
 });
