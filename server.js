@@ -122,6 +122,13 @@ CREATE TABLE IF NOT EXISTS pantry (
   FOREIGN KEY (restaurant_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS invite_codes (
+  code TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_orders_vendor ON orders(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_items_vendor ON items(vendor_id);
@@ -129,6 +136,33 @@ CREATE INDEX IF NOT EXISTS idx_offers_vendor ON offers(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_payments_pair ON payments(vendor_id, restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_pantry_restaurant ON pantry(restaurant_id);
 `);
+
+// ===== Email notifications (Resend) =====
+// Set RESEND_API_KEY (and optionally EMAIL_FROM) in env to activate. No-ops silently otherwise.
+const RESEND_API_KEY = process.env.RESEND_API_KEY || null;
+const EMAIL_FROM = process.env.EMAIL_FROM || "Tabe <onboarding@resend.dev>";
+async function sendEmail(to, subject, html) {
+  if (!RESEND_API_KEY || !to || to.endsWith("@demo.tabe")) return; // skip demo accounts
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + RESEND_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+    });
+  } catch (e) {
+    console.warn("email send failed:", e.message);
+  }
+}
+function emailWrap(title, body) {
+  return `<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
+    <div style="background:#1f5a4f;color:#fff;padding:18px 22px;border-radius:12px 12px 0 0">
+      <div style="font-size:22px;font-weight:bold">Tabe</div>
+    </div>
+    <div style="border:1px solid #e5e5e5;border-top:none;padding:22px;border-radius:0 0 12px 12px">
+      <h2 style="margin:0 0 10px;font-size:17px;color:#0f1a17">${title}</h2>
+      <div style="font-size:14px;color:#333;line-height:1.5">${body}</div>
+    </div></div>`;
+}
 
 // ===== Helpers =====
 const uid = (p) => p + "_" + crypto.randomBytes(6).toString("hex");
@@ -278,6 +312,13 @@ app.post("/api/orders", auth, requireRole("restaurant"), (req, res) => {
     items.forEach(it => insertItem.run(id, String(it.name), Number(it.qty)||0, Number(it.price)||0));
   });
   tx();
+  // notify vendor of the new order
+  const itemsHtml = items.map(it => `<li>${it.qty} × ${it.name} — $${(it.qty * it.price).toFixed(2)}</li>`).join("");
+  sendEmail(v.email, `New order from ${req.user.name} — $${total.toFixed(2)}`,
+    emailWrap("You have a new order on Tabe",
+      `<p><b>${req.user.name}</b> just placed an order:</p><ul>${itemsHtml}</ul>
+       <p><b>Total: $${total.toFixed(2)}</b></p>
+       <p>Open Tabe to confirm it.</p>`));
   res.json({ orderId: id, total });
 });
 
@@ -294,6 +335,19 @@ app.patch("/api/orders/:id/status", auth, (req, res) => {
     if (o.status !== "Confirmed") return res.status(400).json({ error: "Can only mark a Confirmed order as received" });
   }
   db.prepare("UPDATE orders SET status=? WHERE id=?").run(status, o.id);
+  // notify the other side of the status change
+  if (req.user.role === "vendor") {
+    const rest = db.prepare("SELECT * FROM users WHERE id=?").get(o.restaurant_id);
+    if (rest) {
+      const msgs = {
+        Confirmed: ["Your order was confirmed ✓", `<p><b>${req.user.name}</b> confirmed your order of $${o.total.toFixed(2)}. It's on the schedule.</p>`],
+        Declined: ["Your order was declined", `<p><b>${req.user.name}</b> couldn't take your order of $${o.total.toFixed(2)}. Reach out to them or try another vendor.</p>`],
+        Delivered: ["Your order was delivered 📦", `<p><b>${req.user.name}</b> marked your $${o.total.toFixed(2)} order as delivered. The bill is now on your Tabe ledger.</p>`],
+      };
+      const m = msgs[status];
+      if (m) sendEmail(rest.email, m[0], emailWrap(m[0], m[1]));
+    }
+  }
   res.json({ ok: true });
 });
 
@@ -332,6 +386,11 @@ app.post("/api/payments", auth, (req, res) => {
   const id = uid("p");
   db.prepare("INSERT INTO payments (id,vendor_id,restaurant_id,amount,method,date,created_at) VALUES (?,?,?,?,?,?,?)")
     .run(id, vendorId, restaurantId, Math.round(amt * 100) / 100, method || "Cash", today(), new Date().toISOString());
+  // notify the counterparty
+  sendEmail(other.email, `Payment of $${amt.toFixed(2)} recorded on Tabe`,
+    emailWrap("Payment recorded",
+      `<p><b>${req.user.name}</b> recorded a payment of <b>$${amt.toFixed(2)}</b> (${method || "Cash"}).</p>
+       <p>Your shared balance has been updated — open Tabe to see the ledger.</p>`));
   res.json({ paymentId: id });
 });
 
@@ -433,6 +492,53 @@ app.delete("/api/pantry/:id", auth, requireRole("restaurant"), (req, res) => {
   if (!p || p.restaurant_id !== req.user.id) return res.status(404).json({ error: "Pantry item not found" });
   db.prepare("DELETE FROM pantry WHERE id=?").run(p.id);
   res.json({ ok: true });
+});
+
+// --- Invite links ---
+function slugify(name) {
+  return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30) || "user";
+}
+function ensureInviteCode(userId, name) {
+  let row = db.prepare("SELECT code FROM invite_codes WHERE user_id=?").get(userId);
+  if (row) return row.code;
+  let base = slugify(name), code = base, n = 1;
+  while (db.prepare("SELECT 1 FROM invite_codes WHERE code=?").get(code)) { n++; code = base + "-" + n; }
+  db.prepare("INSERT INTO invite_codes (code, user_id, created_at) VALUES (?,?,?)").run(code, userId, new Date().toISOString());
+  return code;
+}
+app.get("/api/my-invite", auth, (req, res) => {
+  const code = ensureInviteCode(req.user.id, req.user.name);
+  res.json({ code, url: (process.env.PUBLIC_URL || "") + "/join/" + code });
+});
+app.get("/api/invite/:code", (req, res) => {
+  const row = db.prepare("SELECT u.id, u.name, u.role, u.emoji, u.area, u.category FROM invite_codes ic JOIN users u ON u.id = ic.user_id WHERE ic.code = ?").get(req.params.code);
+  if (!row) return res.status(404).json({ error: "Invite not found" });
+  res.json({ inviter: row });
+});
+app.get("/join/:code", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+
+// --- Bulk catalogue import (vendor) ---
+// Accepts { text: "Basmati Rice 20kg, 46\nToor Dal 10kg, 31.50\n..." }
+// Each line: product name, then price as the last comma/tab-separated field.
+app.post("/api/items/bulk", auth, requireRole("vendor"), (req, res) => {
+  const text = String((req.body && req.body.text) || "");
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const created = [], skipped = [];
+  const ins = db.prepare("INSERT INTO items (id,vendor_id,name,emoji,price,in_stock) VALUES (?,?,?,?,?,1)");
+  const tx = db.transaction(() => {
+    lines.forEach(line => {
+      const parts = line.split(/[,\t]/).map(x => x.trim()).filter(Boolean);
+      if (parts.length < 2) { skipped.push(line); return; }
+      const priceRaw = parts[parts.length - 1].replace(/[^0-9.]/g, "");
+      const price = parseFloat(priceRaw);
+      const name = parts.slice(0, -1).join(", ");
+      if (!name || !price || price <= 0) { skipped.push(line); return; }
+      ins.run(uid("i"), req.user.id, name, "📦", Math.round(price * 100) / 100);
+      created.push(name);
+    });
+  });
+  tx();
+  res.json({ created: created.length, skipped });
 });
 
 // --- Health ---

@@ -1,0 +1,20 @@
+{
+  "name": "Tabe — Restaurants & Vendors",
+  "short_name": "Tabe",
+  "description": "The supply link between restaurants and their vendors. Order groceries, track balances, run your kitchen.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1f5a4f",
+  "background_color": "#f6f5f0",
+  "lang": "en-CA",
+  "dir": "ltr",
+  "categories": ["business", "food", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

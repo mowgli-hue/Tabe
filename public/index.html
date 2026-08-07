@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Tabe — Restaurants & Vendors</title>
+<meta name="description" content="The supply link between restaurants and their vendors. Order groceries, track balances, run your kitchen.">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1f5a4f">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tabe">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
@@ -250,6 +259,7 @@ function today(){ const d=new Date(); return MONTHS[d.getMonth()]+" "+d.getDate(
 
 let token=localStorage.getItem("tabe_token")||null;
 let me=null;
+let inviter=null; // set when landing on /join/:code
 let state={ vendors:[], restaurants:[], orders:[], payments:[], pantry:[], offers:[], ledger:{}, vendorDetails:{} };
 let route={view:"loading"};
 let cart={};
@@ -326,6 +336,11 @@ function render(){
 /* ========== AUTH SCREENS ========== */
 function authHTML(){
   let h='<div class="auth"><div class="hero"><div class="lg">Ta<span>be</span></div><div class="tag">The supply link between restaurants & their vendors</div></div><div class="body">';
+  if(inviter){
+    h+='<div style="background:var(--accent-l);border:1px solid #efd6b1;border-radius:12px;padding:13px;margin-bottom:16px">'+
+      '<div style="font-family:\'Inter\';font-weight:700;font-size:14px;color:#5e3b15">'+(inviter.emoji||"👋")+' '+escapeHtml(inviter.name)+' invited you to Tabe</div>'+
+      '<div style="font-size:12.5px;color:#8a6a3e;margin-top:3px;font-weight:500">'+(inviter.role==="vendor"?"They supply restaurants like yours — create your restaurant account to order from them.":"They run a restaurant — create your vendor account to receive their orders.")+'</div></div>';
+  }
   h+='<div class="switch"><div class="'+(authMode==="login"?"on":"")+'" onclick="setAuthMode(\'login\')">Sign in</div><div class="'+(authMode==="signup"?"on":"")+'" onclick="setAuthMode(\'signup\')">Create account</div></div>';
   if(authMode==="login"){
     h+='<label>Email</label><input id="lg_e" type="email" placeholder="you@restaurant.com" autocomplete="email" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%;margin-bottom:0">';
@@ -441,6 +456,7 @@ function rHome(){
   h+='<div class="sectionlabel">Quick actions</div><div class="qact">';
   h+='<div class="card tap" onclick="go(\'r_pantry\')"><div class="qico">'+icon("list",17)+'</div><div class="nm">Pantry</div><div class="meta">'+state.pantry.length+' tracked'+(lows.length?' · '+lows.length+' low':"")+'</div></div>';
   h+='<div class="card tap" onclick="go(\'r_insights\')"><div class="qico">'+icon("bar",17)+'</div><div class="nm">Spend insights</div><div class="meta">By vendor</div></div>';
+  h+='<div class="card tap" onclick="copyInviteLink()"><div class="qico" style="background:var(--accent-l);color:var(--accent-d)">'+icon("send",17)+'</div><div class="nm">Invite a vendor</div><div class="meta">Copy your join link</div></div>';
   h+='</div><div style="height:14px"></div>';
   return h;
 }
@@ -635,6 +651,8 @@ function vHome(){
     });
   }
   h+='<div class="sectionlabel">Quick actions</div><div class="qact">';
+  h+='<div class="card tap" onclick="copyInviteLink()"><div class="qico" style="background:var(--accent-l);color:var(--accent-d)">'+icon("send",17)+'</div><div class="nm">Invite customers</div><div class="meta">Copy your join link</div></div>';
+  h+='<div class="card tap" onclick="openBulkImportModal()"><div class="qico" style="background:var(--accent-l);color:var(--accent-d)">'+icon("inbox",17)+'</div><div class="nm">Import catalogue</div><div class="meta">Paste your price list</div></div>';
   h+='<div class="card tap" onclick="go(\'v_catalogue\')"><div class="qico">'+icon("list",17)+'</div><div class="nm">Catalogue</div><div class="meta">'+myItems.length+' products</div></div>';
   h+='<div class="card tap" onclick="openBulkPriceModal()"><div class="qico">'+icon("trending",17)+'</div><div class="nm">Bulk price update</div><div class="meta">Adjust all at once</div></div>';
   h+='<div class="card tap" onclick="go(\'v_offers\')"><div class="qico">'+icon("tag",17)+'</div><div class="nm">Offers</div><div class="meta">'+vendorMyOffers().length+' live</div></div>';
@@ -669,7 +687,7 @@ function vCatalogue(){
   const items=vendorMyItems();
   const inStock=items.filter(i=>i.stock!==false).length;
   let h='<div class="hd">Catalogue</div><div class="sub2">'+items.length+' products · '+inStock+' in stock</div>';
-  h+='<div class="btnrow" style="margin-bottom:11px"><button class="btn ghost sm" style="flex:1" onclick="openBulkPriceModal()">'+icon("trending",14)+'Bulk price update</button></div>';
+  h+='<div class="btnrow" style="margin-bottom:11px"><button class="btn ghost sm" style="flex:1" onclick="openBulkImportModal()">'+icon("inbox",14)+'Paste import</button><button class="btn ghost sm" style="flex:1" onclick="openBulkPriceModal()">'+icon("trending",14)+'Bulk price update</button></div>';
   if(!items.length) h+=emptyState("No products yet","Tap + to add your first product.");
   items.forEach(it=>{ const stock=it.stock!==false;
     h+='<div class="item'+(stock?"":" oos")+'"><div class="itemico">'+(it.e||"📦")+'</div>'+
@@ -843,8 +861,54 @@ let _t;
 function toast(msg,isErr){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(isErr?" err":""); clearTimeout(_t); _t=setTimeout(()=>t.className="toast"+(isErr?" err":""),2400); }
 document.addEventListener("click",function(e){ if(e.target&&e.target.id==="modal") closeModal(); });
 
+/* ========== INVITES + BULK IMPORT ========== */
+async function detectInvite(){
+  const m = location.pathname.match(/^\/join\/([a-z0-9-]+)/i);
+  if(!m) return;
+  try{
+    const r = await api("GET","/api/invite/"+m[1]);
+    inviter = r.inviter;
+    authMode = "signup";
+    authRole = inviter.role === "vendor" ? "restaurant" : "vendor";
+    if(!me) render();
+  }catch{}
+}
+async function copyInviteLink(){
+  try{
+    const r = await api("GET","/api/my-invite");
+    const url = (r.url && r.url.startsWith("http")) ? r.url : (location.origin + "/join/" + r.code);
+    if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); toast("Invite link copied — share it anywhere"); }
+    else { prompt("Copy your invite link:", url); }
+  }catch(e){ toast(e.message, true); }
+}
+function openBulkImportModal(){
+  openModal('<h3>Import your catalogue</h3><p>Paste your price list — one product per line, price at the end. Example:<br><i>Basmati Rice 20kg, 46<br>Toor Dal 10kg, 31.50</i></p>'+
+    '<label>Paste price list</label><textarea id="f_bulk" style="min-height:140px" placeholder="Product name, price"></textarea>'+
+    '<button class="btn primary" onclick="submitBulkImport()">Import products</button>'+
+    '<button class="btn ghost" onclick="closeModal()">Cancel</button>');
+}
+async function submitBulkImport(){
+  const text = $("f_bulk").value.trim();
+  if(!text){ toast("Paste your price list first", true); return; }
+  try{
+    const r = await api("POST","/api/items/bulk",{text});
+    delete state.vendorDetails[me.id];
+    await ensureMyCatalog(); await refreshAll(); closeModal();
+    toast(r.created+" products imported"+(r.skipped.length?" · "+r.skipped.length+" line(s) skipped":""));
+    render();
+  }catch(e){ toast(e.message, true); }
+}
+
 /* ========== BOOT ========== */
+detectInvite();
 tryRestoreSession();
+
+// Register PWA service worker (needed for install prompt + Play Store submission via PWABuilder)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
