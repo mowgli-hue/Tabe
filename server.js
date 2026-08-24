@@ -122,6 +122,15 @@ CREATE TABLE IF NOT EXISTS pantry (
   FOREIGN KEY (restaurant_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS connections (
+  vendor_id TEXT NOT NULL,
+  restaurant_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (vendor_id, restaurant_id),
+  FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (restaurant_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS invite_codes (
   code TEXT PRIMARY KEY,
   user_id TEXT NOT NULL UNIQUE,
@@ -135,7 +144,12 @@ CREATE INDEX IF NOT EXISTS idx_items_vendor ON items(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_offers_vendor ON offers(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_payments_pair ON payments(vendor_id, restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_pantry_restaurant ON pantry(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_conn_restaurant ON connections(restaurant_id);
 `);
+
+// Migrations for existing databases (safe to re-run)
+try { db.exec("ALTER TABLE payments ADD COLUMN status TEXT NOT NULL DEFAULT 'Confirmed'"); } catch {}
+try { db.exec("ALTER TABLE payments ADD COLUMN proof TEXT"); } catch {}
 
 // ===== Email notifications (Resend) =====
 // Set RESEND_API_KEY (and optionally EMAIL_FROM) in env to activate. No-ops silently otherwise.
@@ -182,6 +196,13 @@ const sanitizeUser = (u, includeEmail = false) => {
 };
 // Trim + cap user-supplied text fields
 const clean = (v, max) => (v == null ? null : String(v).trim().slice(0, max) || null);
+// Vendor–restaurant connections (the "real relationships" model)
+const isConnected = (vendorId, restaurantId) =>
+  !!db.prepare("SELECT 1 FROM connections WHERE vendor_id=? AND restaurant_id=?").get(vendorId, restaurantId);
+function connectPair(vendorId, restaurantId) {
+  db.prepare("INSERT OR IGNORE INTO connections (vendor_id, restaurant_id, created_at) VALUES (?,?,?)")
+    .run(vendorId, restaurantId, new Date().toISOString());
+}
 const sanitizeItem = (i) => i && { id:i.id, vendor_id:i.vendor_id, n:i.name, e:i.emoji, p:i.price, stock: i.in_stock === 1 };
 const sanitizeOrder = (o, notesByOrder, itemsByOrder) => o && {
   id: o.id, v: o.vendor_id, r: o.restaurant_id, status: o.status, total: o.total, date: o.date,
@@ -255,6 +276,14 @@ app.post("/api/signup", authRateLimit, (req, res) => {
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(id, email.toLowerCase(), hash, role, name, area, emoji||(role==="restaurant"?"🍽️":"🏪"),
          category, cutoff, deliveryDays, phone, Math.max(0, Number(b.minOrder)||0), new Date().toISOString());
+  // Invite-based connection: joining via someone's link links the two businesses
+  const inviteCode = clean(b.inviteCode, 40);
+  if (inviteCode) {
+    const inv = db.prepare("SELECT u.id, u.role FROM invite_codes ic JOIN users u ON u.id=ic.user_id WHERE ic.code=?").get(inviteCode);
+    if (inv && inv.role !== role) {
+      if (role === "restaurant") connectPair(inv.id, id); else connectPair(id, inv.id);
+    }
+  }
   const token = jwt.sign({ id, role }, JWT_SECRET, { expiresIn: "30d" });
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
   res.json({ token, user: sanitizeUser(user, true) });
@@ -287,23 +316,33 @@ app.patch("/api/profile", auth, (req, res) => {
 });
 
 // --- Public-ish vendor browsing (any authed user) ---
-app.get("/api/vendors", auth, (_req, res) => {
-  const rows = db.prepare("SELECT * FROM users WHERE role='vendor' ORDER BY name").all();
-  res.json({ vendors: rows.map(sanitizeUser) });
+app.get("/api/vendors", auth, (req, res) => {
+  // Restaurants see only their connected vendors. (Vendors have no use for this list.)
+  if (req.user.role !== "restaurant") return res.json({ vendors: [] });
+  const rows = db.prepare(`SELECT u.* FROM users u JOIN connections c ON c.vendor_id = u.id
+    WHERE c.restaurant_id = ? ORDER BY u.name`).all(req.user.id);
+  res.json({ vendors: rows.map(u => sanitizeUser(u)) });
 });
 
 app.get("/api/vendors/:id", auth, (req, res) => {
   const v = db.prepare("SELECT * FROM users WHERE id=? AND role='vendor'").get(req.params.id);
   if (!v) return res.status(404).json({ error: "Vendor not found" });
+  const allowed = req.user.id === v.id || (req.user.role === "restaurant" && isConnected(v.id, req.user.id));
+  if (!allowed) return res.status(403).json({ error: "You're not connected with this vendor yet" });
   const items = db.prepare("SELECT * FROM items WHERE vendor_id=? ORDER BY name").all(v.id);
   const offers = db.prepare("SELECT * FROM offers WHERE vendor_id=? ORDER BY created_at DESC").all(v.id);
   res.json({ vendor: sanitizeUser(v), items: items.map(sanitizeItem), offers });
 });
 
 // --- Restaurants list (any user; vendors use it to see their customers) ---
-app.get("/api/restaurants", auth, (_req, res) => {
-  const rows = db.prepare("SELECT * FROM users WHERE role='restaurant' ORDER BY name").all();
-  res.json({ restaurants: rows.map(sanitizeUser) });
+app.get("/api/restaurants", auth, (req, res) => {
+  if (req.user.role === "vendor") {
+    const rows = db.prepare(`SELECT u.* FROM users u JOIN connections c ON c.restaurant_id = u.id
+      WHERE c.vendor_id = ? ORDER BY u.name`).all(req.user.id);
+    return res.json({ restaurants: rows.map(u => sanitizeUser(u)) });
+  }
+  // A restaurant only needs itself
+  res.json({ restaurants: [sanitizeUser(req.user)] });
 });
 
 // --- Orders ---
@@ -331,6 +370,7 @@ app.post("/api/orders", auth, requireRole("restaurant"), (req, res) => {
   if (items.length > 200) return res.status(400).json({ error: "Too many items in one order" });
   const v = db.prepare("SELECT * FROM users WHERE id=? AND role='vendor'").get(vendorId);
   if (!v) return res.status(404).json({ error: "Vendor not found" });
+  if (!isConnected(vendorId, req.user.id)) return res.status(403).json({ error: "Connect with this vendor first (use their invite link)" });
   // Price integrity: if the item name matches the vendor's catalogue, the vendor's
   // current price wins over whatever the client sent. Free-text items pass through.
   const priceByName = {};
@@ -409,16 +449,16 @@ app.post("/api/orders/:id/notes", auth, (req, res) => {
 app.get("/api/payments", auth, (req, res) => {
   const where = req.user.role === "restaurant" ? "restaurant_id = ?" : "vendor_id = ?";
   const rows = db.prepare(`SELECT * FROM payments WHERE ${where} ORDER BY created_at DESC`).all(req.user.id);
-  res.json({ payments: rows.map(p => ({ id:p.id, v:p.vendor_id, r:p.restaurant_id, amount:p.amount, method:p.method, date:p.date })) });
+  res.json({ payments: rows.map(p => ({ id:p.id, v:p.vendor_id, r:p.restaurant_id, amount:p.amount, method:p.method, date:p.date, status:p.status||"Confirmed", hasProof:!!p.proof })) });
 });
 
 app.post("/api/payments", auth, (req, res) => {
-  const { counterpartyId, amount, method } = req.body || {};
+  const { counterpartyId, amount, method, proof } = req.body || {};
   const amt = Number(amount);
   if (!counterpartyId || !amt || amt <= 0) return res.status(400).json({ error: "counterpartyId and amount required" });
   const other = db.prepare("SELECT * FROM users WHERE id=?").get(counterpartyId);
   if (!other) return res.status(404).json({ error: "Counterparty not found" });
-  // Role check: restaurant pays a vendor; vendor records a payment received from restaurant
+  // Role check: restaurant submits a payment claim; vendor records a payment received
   let vendorId, restaurantId;
   if (req.user.role === "restaurant") {
     if (other.role !== "vendor") return res.status(400).json({ error: "Counterparty must be a vendor" });
@@ -427,22 +467,68 @@ app.post("/api/payments", auth, (req, res) => {
     if (other.role !== "restaurant") return res.status(400).json({ error: "Counterparty must be a restaurant" });
     vendorId = req.user.id; restaurantId = other.id;
   }
+  if (!isConnected(vendorId, restaurantId)) return res.status(403).json({ error: "You're not connected with this business" });
+  // Optional proof screenshot (data URL). Restaurant payments start Pending until the vendor confirms.
+  let proofData = null;
+  if (proof != null) {
+    const pstr = String(proof);
+    if (!pstr.startsWith("data:image/")) return res.status(400).json({ error: "Proof must be an image" });
+    if (pstr.length > 2_500_000) return res.status(400).json({ error: "Screenshot too large — try a smaller image" });
+    proofData = pstr;
+  }
+  const status = req.user.role === "restaurant" ? "Pending" : "Confirmed";
   const id = uid("p");
-  db.prepare("INSERT INTO payments (id,vendor_id,restaurant_id,amount,method,date,created_at) VALUES (?,?,?,?,?,?,?)")
-    .run(id, vendorId, restaurantId, Math.round(amt * 100) / 100, method || "Cash", today(), new Date().toISOString());
-  // notify the counterparty
-  sendEmail(other.email, `Payment of $${amt.toFixed(2)} recorded on Vlink`,
-    emailWrap("Payment recorded",
-      `<p><b>${req.user.name}</b> recorded a payment of <b>$${amt.toFixed(2)}</b> (${method || "Cash"}).</p>
-       <p>Your shared balance has been updated — open Vlink to see the ledger.</p>`));
-  res.json({ paymentId: id });
+  db.prepare("INSERT INTO payments (id,vendor_id,restaurant_id,amount,method,date,created_at,status,proof) VALUES (?,?,?,?,?,?,?,?,?)")
+    .run(id, vendorId, restaurantId, Math.round(amt * 100) / 100, method || "Cash", today(), new Date().toISOString(), status, proofData);
+  if (status === "Pending") {
+    sendEmail(other.email, `${req.user.name} says they paid you $${amt.toFixed(2)}`,
+      emailWrap("Payment to confirm",
+        `<p><b>${req.user.name}</b> submitted a payment of <b>$${amt.toFixed(2)}</b> (${method || "Cash"})${proofData ? " with a screenshot attached" : ""}.</p>
+         <p>Open Vlink to review and confirm it — the balance updates once you confirm.</p>`));
+  } else {
+    sendEmail(other.email, `Payment of $${amt.toFixed(2)} recorded on Vlink`,
+      emailWrap("Payment recorded",
+        `<p><b>${req.user.name}</b> recorded a payment of <b>$${amt.toFixed(2)}</b> (${method || "Cash"}).</p>
+         <p>Your shared balance has been updated — open Vlink to see the ledger.</p>`));
+  }
+  res.json({ paymentId: id, status });
+});
+
+// Vendor reviews a pending payment claim
+app.patch("/api/payments/:id", auth, requireRole("vendor"), (req, res) => {
+  const action = (req.body && req.body.action) || "";
+  if (!["confirm", "decline"].includes(action)) return res.status(400).json({ error: "action must be confirm or decline" });
+  const pmt = db.prepare("SELECT * FROM payments WHERE id=?").get(req.params.id);
+  if (!pmt || pmt.vendor_id !== req.user.id) return res.status(404).json({ error: "Payment not found" });
+  if ((pmt.status || "Confirmed") !== "Pending") return res.status(400).json({ error: "This payment isn't awaiting review" });
+  const newStatus = action === "confirm" ? "Confirmed" : "Declined";
+  db.prepare("UPDATE payments SET status=? WHERE id=?").run(newStatus, pmt.id);
+  const rest = db.prepare("SELECT * FROM users WHERE id=?").get(pmt.restaurant_id);
+  if (rest) {
+    if (newStatus === "Confirmed") {
+      sendEmail(rest.email, `Your payment of $${pmt.amount.toFixed(2)} was confirmed ✓`,
+        emailWrap("Payment confirmed", `<p><b>${req.user.name}</b> confirmed your payment of <b>$${pmt.amount.toFixed(2)}</b>. Your balance is updated.</p>`));
+    } else {
+      sendEmail(rest.email, `Your payment of $${pmt.amount.toFixed(2)} was declined`,
+        emailWrap("Payment declined", `<p><b>${req.user.name}</b> couldn't verify your payment of <b>$${pmt.amount.toFixed(2)}</b>. Reach out to them to sort it out.</p>`));
+    }
+  }
+  res.json({ ok: true, status: newStatus });
+});
+
+// Fetch a payment's proof image (either party)
+app.get("/api/payments/:id/proof", auth, (req, res) => {
+  const pmt = db.prepare("SELECT * FROM payments WHERE id=?").get(req.params.id);
+  if (!pmt || (pmt.vendor_id !== req.user.id && pmt.restaurant_id !== req.user.id)) return res.status(404).json({ error: "Not found" });
+  if (!pmt.proof) return res.status(404).json({ error: "No proof attached" });
+  res.json({ proof: pmt.proof });
 });
 
 app.get("/api/ledger", auth, (req, res) => {
   // For current user, compute balance with each counterparty (vendor or restaurant)
   if (req.user.role === "restaurant") {
     const billsRows = db.prepare(`SELECT vendor_id AS cp, SUM(total) AS sum FROM orders WHERE restaurant_id=? AND status IN ('Confirmed','Delivered') GROUP BY vendor_id`).all(req.user.id);
-    const paysRows = db.prepare(`SELECT vendor_id AS cp, SUM(amount) AS sum FROM payments WHERE restaurant_id=? GROUP BY vendor_id`).all(req.user.id);
+    const paysRows = db.prepare(`SELECT vendor_id AS cp, SUM(amount) AS sum FROM payments WHERE restaurant_id=? AND status='Confirmed' GROUP BY vendor_id`).all(req.user.id);
     const map = {};
     billsRows.forEach(r => { map[r.cp] = (map[r.cp]||0) + r.sum; });
     paysRows.forEach(r => { map[r.cp] = (map[r.cp]||0) - r.sum; });
@@ -450,7 +536,7 @@ app.get("/api/ledger", auth, (req, res) => {
     res.json({ ledger: out });
   } else {
     const billsRows = db.prepare(`SELECT restaurant_id AS cp, SUM(total) AS sum FROM orders WHERE vendor_id=? AND status IN ('Confirmed','Delivered') GROUP BY restaurant_id`).all(req.user.id);
-    const paysRows = db.prepare(`SELECT restaurant_id AS cp, SUM(amount) AS sum FROM payments WHERE vendor_id=? GROUP BY restaurant_id`).all(req.user.id);
+    const paysRows = db.prepare(`SELECT restaurant_id AS cp, SUM(amount) AS sum FROM payments WHERE vendor_id=? AND status='Confirmed' GROUP BY restaurant_id`).all(req.user.id);
     const map = {};
     billsRows.forEach(r => { map[r.cp] = (map[r.cp]||0) + r.sum; });
     paysRows.forEach(r => { map[r.cp] = (map[r.cp]||0) - r.sum; });
@@ -505,8 +591,17 @@ app.delete("/api/offers/:id", auth, requireRole("vendor"), (req, res) => {
   db.prepare("DELETE FROM offers WHERE id=?").run(of.id);
   res.json({ ok: true });
 });
-app.get("/api/offers", auth, (_req, res) => {
-  const rows = db.prepare(`SELECT o.*, u.name as vendor_name FROM offers o JOIN users u ON u.id=o.vendor_id ORDER BY o.created_at DESC`).all();
+app.get("/api/offers", auth, (req, res) => {
+  let rows;
+  if (req.user.role === "restaurant") {
+    rows = db.prepare(`SELECT o.*, u.name as vendor_name FROM offers o
+      JOIN users u ON u.id=o.vendor_id
+      JOIN connections c ON c.vendor_id = o.vendor_id
+      WHERE c.restaurant_id = ? ORDER BY o.created_at DESC`).all(req.user.id);
+  } else {
+    rows = db.prepare(`SELECT o.*, u.name as vendor_name FROM offers o JOIN users u ON u.id=o.vendor_id
+      WHERE o.vendor_id = ? ORDER BY o.created_at DESC`).all(req.user.id);
+  }
   res.json({ offers: rows });
 });
 
@@ -583,6 +678,18 @@ app.post("/api/items/bulk", auth, requireRole("vendor"), (req, res) => {
   });
   tx();
   res.json({ created: created.length, skipped });
+});
+
+// --- Connect with a counterparty via their invite code ---
+app.post("/api/connect", auth, (req, res) => {
+  const code = clean(req.body && req.body.code, 60);
+  if (!code) return res.status(400).json({ error: "Invite code required" });
+  const inv = db.prepare("SELECT u.* FROM invite_codes ic JOIN users u ON u.id=ic.user_id WHERE ic.code=?").get(code);
+  if (!inv) return res.status(404).json({ error: "Invite not found — check the code" });
+  if (inv.id === req.user.id) return res.status(400).json({ error: "That's your own invite link" });
+  if (inv.role === req.user.role) return res.status(400).json({ error: "You can only connect with a " + (req.user.role === "vendor" ? "restaurant" : "vendor") });
+  if (req.user.role === "restaurant") connectPair(inv.id, req.user.id); else connectPair(req.user.id, inv.id);
+  res.json({ connected: sanitizeUser(inv) });
 });
 
 // --- Health ---

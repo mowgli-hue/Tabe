@@ -181,6 +181,38 @@ body.authfull #app{max-width:none}
   .auth .body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:64px 80px;overflow-y:auto;max-height:100vh}
   .auth .formcol{width:100%;max-width:440px;margin:0 auto}
 }
+/* ===== Desktop app layout (logged in) ===== */
+.nav .navlogo{display:none}
+@media(min-width:1024px){
+  body.appfull{padding:0}
+  body.appfull #app{max-width:none;min-height:100vh;border-radius:0;box-shadow:none}
+  /* bottom tab bar becomes a left sidebar */
+  body.appfull .nav{left:0;top:0;bottom:0;right:auto;width:232px;flex-direction:column;align-items:stretch;
+    justify-content:flex-start;padding:18px 10px 18px;border-top:none;border-right:1px solid var(--line);
+    background:#fff;backdrop-filter:none;gap:2px}
+  body.appfull .nav .navlogo{display:block;font-family:'DM Serif Display',Georgia,serif;font-size:30px;
+    color:var(--brand-d);padding:6px 14px 20px;letter-spacing:-.02em}
+  body.appfull .nav .navlogo span{color:var(--accent)}
+  body.appfull .nav .navrole{display:block;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);padding:0 14px 10px;margin-top:-14px}
+  body.appfull .nav .n{flex:0 0 auto;flex-direction:row;justify-content:flex-start;gap:12px;padding:11px 14px;
+    border-radius:10px;font-size:14px;text-align:left}
+  body.appfull .nav .n svg{width:19px;height:19px}
+  body.appfull .nav .n.on{background:var(--brand-l)}
+  body.appfull .nav.v .n.on{background:var(--accent-pale, #fbeedd)}
+  /* content shifts right of the sidebar and breathes */
+  body.appfull .appbar{margin-left:232px;padding-left:36px;padding-right:36px}
+  body.appfull .screen{margin-left:232px;padding:26px 40px 60px}
+  body.appfull .screen>*{max-width:880px}
+  body.appfull .qact{grid-template-columns:repeat(4,1fr);max-width:880px}
+  body.appfull .tabs{max-width:520px}
+  /* floating controls respect the sidebar */
+  body.appfull .fab{right:44px;bottom:36px}
+  body.appfull .cartbar{left:272px;right:auto;width:600px;bottom:28px}
+  /* bottom sheets become centered dialogs */
+  body.appfull .modal{align-items:center;padding:24px}
+  body.appfull .modal .sheet{border-radius:22px;max-width:520px;box-shadow:0 30px 80px rgba(0,0,0,.3)}
+}
 .actrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line-2);font-size:13px}
 .actrow:last-child{border-bottom:none}
 .actrow .ico{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background:var(--brand-l);color:var(--brand)}
@@ -295,7 +327,7 @@ async function api(method,path,body){
 /* ========== AUTH ========== */
 async function tryRestoreSession(){
   if(!token){ route={view:"auth"}; render(); return; }
-  try{ const r=await api("GET","/api/me"); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); }
+  try{ const r=await api("GET","/api/me"); me=r.user; await refreshAll(); route={view:me.role==="restaurant"?"r_home":"v_home"}; render(); await consumePendingJoin(); }
   catch{ token=null; localStorage.removeItem("tabe_token"); route={view:"auth"}; render(); }
 }
 async function doLogin(email,password){
@@ -348,8 +380,9 @@ function obStep(done, n, title, sub, action){
 function render(){
   const app=$("app");
   if(route.view==="loading"){ app.innerHTML='<div class="empty" style="margin-top:120px"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:18px">Loading…</div></div>'; return; }
-  if(route.view==="auth"){ document.body.classList.add("authfull"); app.innerHTML=authHTML(); return; }
+  if(route.view==="auth"){ document.body.classList.add("authfull"); document.body.classList.remove("appfull"); app.innerHTML=authHTML(); return; }
   document.body.classList.remove("authfull");
+  document.body.classList.add("appfull");
   if(!me){ route={view:"auth"}; return render(); }
   let body="",bar="",nav="",float="";
   if(me.role==="restaurant"){ const out=renderRestaurant(); body=out.body;bar=out.bar;nav=out.nav;float=out.float; }
@@ -399,6 +432,7 @@ function submitLogin(){ const e=$("lg_e").value.trim(); const p=$("lg_p").value;
 function submitSignup(){
   const role=authRole;
   const body={role:role, name:$("sg_n").value.trim(), email:$("sg_e").value.trim(), password:$("sg_p").value, area:$("sg_a").value.trim(), emoji:(role==="restaurant"?"🍽️":"🏪")};
+  if(inviter && inviter.code) body.inviteCode = inviter.code;
   if(!body.name||!body.email||!body.password){ toast("Please fill all required fields",true); return; }
   if(role==="vendor"){ body.category=$("sg_c").value.trim(); body.cutoff=$("sg_co").value.trim(); body.deliveryDays=$("sg_dd").value.trim(); body.phone=$("sg_ph").value.trim(); }
   doSignup(body);
@@ -416,7 +450,7 @@ function go(view,opts){ route={view:view,vendorId:(opts&&opts.vendorId)||null,re
 /* ========== RESTAURANT ========== */
 function restNav(){
   const tabs=[["r_home","home","Home"],["r_orders","package","Orders"],["r_pantry","list","Pantry"],["r_ledger","book","Ledger"],["r_offers","tag","Offers"]];
-  let h='<div class="nav r">';
+  let h='<div class="nav r"><div class="navlogo">V<span>link</span></div><span class="navrole" style="display:none"></span>';
   tabs.forEach(t=>{ const on=(route.view===t[0]||(t[0]==="r_home"&&(route.view==="r_vendor"||route.view==="r_insights"))||(t[0]==="r_orders"&&route.view==="r_cart"));
     h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+'</div>'; });
   return h+'</div>';
@@ -454,7 +488,7 @@ function rHome(){
   if(!state.orders.length){
     const hasVendors = state.vendors.length > 0;
     h+='<div class="sectionlabel">Welcome to Vlink</div><div class="card" style="padding:6px 14px">';
-    h+=obStep(hasVendors, "1", hasVendors ? "Your vendors are here" : "Invite your vendor", hasVendors ? state.vendors.length+" vendor(s) ready to take orders" : "Send them your join link — they set up in minutes", hasVendors?null:"copyInviteLink()");
+    h+=obStep(hasVendors, "1", hasVendors ? "Your vendors are here" : "Connect your vendor", hasVendors ? state.vendors.length+" vendor(s) ready to take orders" : "Paste their invite code, or send them yours", hasVendors?null:"openConnectModal()");
     h+=obStep(false, "2", "Place your first order", hasVendors ? "Tap a vendor below and add items" : "Available once a vendor joins", null);
     h+=obStep(false, "3", "Watch the ledger work", "Bills and payments track themselves from there", null);
     h+='</div>';
@@ -493,7 +527,7 @@ function rHome(){
   h+='<div class="sectionlabel">Quick actions</div><div class="qact">';
   h+='<div class="card tap" onclick="go(\'r_pantry\')"><div class="qico">'+icon("list",17)+'</div><div class="nm">Pantry</div><div class="meta">'+state.pantry.length+' tracked'+(lows.length?' · '+lows.length+' low':"")+'</div></div>';
   h+='<div class="card tap" onclick="go(\'r_insights\')"><div class="qico">'+icon("bar",17)+'</div><div class="nm">Spend insights</div><div class="meta">By vendor</div></div>';
-  h+='<div class="card tap" onclick="copyInviteLink()"><div class="qico" style="background:var(--accent-l);color:var(--accent-d)">'+icon("send",17)+'</div><div class="nm">Invite a vendor</div><div class="meta">Copy your join link</div></div>';
+  h+='<div class="card tap" onclick="openConnectModal()"><div class="qico" style="background:var(--accent-l);color:var(--accent-d)">'+icon("plus",17)+'</div><div class="nm">Add a vendor</div><div class="meta">Connect with a code or invite</div></div>';
   h+='</div><div style="height:14px"></div>';
   return h;
 }
@@ -560,14 +594,14 @@ function rLedger(){
   state.vendors.forEach(v=>{ const bal=balanceWith(v.id);
     const bills=state.orders.filter(o=>o.v===v.id&&(o.status==="Confirmed"||o.status==="Delivered"));
     const pays=state.payments.filter(p=>p.v===v.id);
-    const lines=bills.map(b=>({d:b.date,t:b.id.toUpperCase(),v:b.total,k:"bill"})).concat(pays.map(p=>({d:p.date,t:"Payment · "+p.method,v:p.amount,k:"pay"})))
+    const lines=bills.map(b=>({d:b.date,t:b.id.toUpperCase(),v:b.total,k:"bill"})).concat(pays.map(p=>({d:p.date,t:"Payment · "+p.method+(p.status==="Pending"?" (awaiting confirmation)":p.status==="Declined"?" (declined)":""),v:p.amount,k:(p.status==="Pending"?"pending":p.status==="Declined"?"declined":"pay")})))
       .sort((a,b)=>dateNum(b.d)-dateNum(a.d));
     const g=gradFor(v.id);
     h+='<div class="card tap" onclick="toggleLed(\''+v.id+'\')"><div class="row"><div class="avatar grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
       '<div><div class="nm">'+escapeHtml(v.name)+'</div><div class="meta">'+bills.length+' bill(s) · '+pays.length+' payment(s)</div></div>'+
       '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">'+(bal>0?"outstanding":"all clear")+'</div></div></div>'+
       '<div id="led_'+v.id+'" style="display:none;margin-top:10px;border-top:1px solid var(--line-2);padding-top:4px">'+
-      (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":"pay")+'">'+(x.k==="bill"?"+":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+
+      (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":x.k==="pay"?"pay":"")+'"'+(x.k==="pending"?' style="color:var(--amber)"':x.k==="declined"?' style="color:var(--muted);text-decoration:line-through"':'')+'>'+(x.k==="bill"?"+":x.k==="declined"?"":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+
       '<button class="btn primary sm" style="width:100%;margin-top:10px" onclick="event.stopPropagation();openPayModal(\''+v.id+'\')">'+icon("dollar",14)+'Pay '+escapeHtml(v.name.split(" ")[0])+'</button></div></div>';
   });
   h+='<div style="height:70px"></div>';
@@ -621,7 +655,7 @@ function rInsights(){
 /* ========== VENDOR ========== */
 function venNav(){
   const tabs=[["v_home","home","Home"],["v_orders","package","Orders"],["v_catalogue","list","Catalogue"],["v_customers","users","Customers"],["v_offers","tag","Offers"]];
-  let h='<div class="nav v">'; const pend=state.orders.filter(o=>o.status==="Pending").length;
+  let h='<div class="nav v"><div class="navlogo">V<span>link</span></div>'; const pend=state.orders.filter(o=>o.status==="Pending").length;
   tabs.forEach(t=>{ const on=route.view===t[0]||(t[0]==="v_customers"&&route.view==="v_customer");
     h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+(t[0]==="v_orders"&&pend?'<span class="badge">'+pend+'</span>':"")+'</div>'; });
   return h+'</div>';
@@ -661,6 +695,19 @@ function vHome(){
     '<div><div class="stl">Paid</div><b>'+money(vendorPaid())+'</b></div>'+
     '<div><div class="stl">Pending</div><b>'+pend.length+'</b></div>'+
     '<div><div class="stl">Products</div><b>'+myItems.length+'</b></div></div></div>';
+  // Payment claims awaiting review
+  const claims = state.payments.filter(p=>p.status==="Pending");
+  if(claims.length){
+    h+='<div class="sectionlabel">'+icon("dollar",13)+'Payments to confirm<span class="ct">'+claims.length+'</span></div>';
+    claims.forEach(p=>{ const r=rById(p.r)||{name:"Customer",emoji:"🍽️"};
+      h+='<div class="card"><div class="row"><div class="avatar sm grad" style="--g1:#b56826;--g2:#7a3318">'+(r.emoji||"🍽️")+'</div>'+
+        '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(r.name)+'</div><div class="meta">'+p.date+' · '+escapeHtml(p.method)+(p.hasProof?' · screenshot attached':'')+'</div></div>'+
+        '<div class="right"><div class="amt">'+money(p.amount)+'</div><div class="lbl">claimed paid</div></div></div>'+
+        '<div class="btnrow">'+(p.hasProof?'<button class="btn ghost sm" onclick="viewProof(\''+p.id+'\')">View screenshot</button>':'')+
+        '<button class="btn primary sm" onclick="reviewClaim(\''+p.id+'\',\'confirm\')">'+icon("check",14)+'Confirm</button>'+
+        '<button class="btn danger sm" onclick="reviewClaim(\''+p.id+'\',\'decline\')">Decline</button></div></div>';
+    });
+  }
   // First-run onboarding: shown until the shop has products and its first order
   const hasItems = myItems.length > 0;
   const hasOffer = vendorMyOffers().length > 0;
@@ -783,12 +830,12 @@ function vCustomer(){
   const bills=state.orders.filter(o=>o.r===r.id&&(o.status==="Confirmed"||o.status==="Delivered"));
   const pays=state.payments.filter(p=>p.r===r.id);
   const billed=bills.reduce((s,o)=>s+o.total,0), paid=pays.reduce((s,p)=>s+p.amount,0);
-  const lines=bills.map(b=>({d:b.date,t:b.id.toUpperCase(),v:b.total,k:"bill"})).concat(pays.map(p=>({d:p.date,t:"Payment · "+p.method,v:p.amount,k:"pay"}))).sort((a,b)=>dateNum(b.d)-dateNum(a.d));
+  const lines=bills.map(b=>({d:b.date,t:b.id.toUpperCase(),v:b.total,k:"bill"})).concat(pays.map(p=>({d:p.date,t:"Payment · "+p.method+(p.status==="Pending"?" (awaiting confirmation)":p.status==="Declined"?" (declined)":""),v:p.amount,k:(p.status==="Pending"?"pending":p.status==="Declined"?"declined":"pay")}))).sort((a,b)=>dateNum(b.d)-dateNum(a.d));
   let h='<div class="summary v"><div class="lbl">'+escapeHtml(r.name)+' owes you</div><div class="big">'+money(Math.max(0,bal))+'</div>'+
     '<div class="split"><div><div class="stl">Billed</div><b>'+money(billed)+'</b></div><div><div class="stl">Paid</div><b>'+money(paid)+'</b></div><div><div class="stl">Bills</div><b>'+bills.length+'</b></div></div></div>';
   if(bal>0) h+='<button class="btn accent" onclick="sendReminder(\''+r.id+'\')">'+icon("bell",15)+'Send payment reminder</button>';
   h+='<div class="sectionlabel">Shared ledger</div><div class="card">'+
-    (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":"pay")+'">'+(x.k==="bill"?"+":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+'</div>';
+    (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":x.k==="pay"?"pay":"")+'"'+(x.k==="pending"?' style="color:var(--amber)"':x.k==="declined"?' style="color:var(--muted);text-decoration:line-through"':'')+'>'+(x.k==="bill"?"+":x.k==="declined"?"":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+'</div>';
   h+='<div style="height:70px"></div>';
   return h;
 }
@@ -803,14 +850,20 @@ function methodChips(){ return '<div class="chips" id="methodChips">'+METHODS.ma
 function pickMethod(m){ _payMethod=m; document.querySelectorAll("#methodChips .chip").forEach(c=>c.classList.toggle("sel",c.textContent===m)); }
 function openPayModal(vId){ _payMethod="e-Transfer";
   const opts=state.vendors.map(v=>'<option value="'+v.id+'"'+(v.id===vId?" selected":"")+'>'+escapeHtml(v.name)+' ('+(balanceWith(v.id)>0?money(balanceWith(v.id))+" owed":"settled")+')</option>').join("");
-  openModal('<h3>Record a payment</h3><p>Log a payment you made. Your vendor sees the updated balance instantly.</p>'+
+  _proofData=null;
+  openModal('<h3>Record a payment</h3><p>Paid by e-Transfer, cash, or cheque? Log it here — attach a screenshot and your vendor confirms it into the ledger.</p>'+
     '<label>Vendor</label><select id="f_vendor">'+opts+'</select>'+
     '<label>Amount (CAD)</label><input id="f_amount" type="number" inputmode="decimal" placeholder="0.00">'+
     '<label>Paid by</label>'+methodChips()+
-    '<button class="btn primary" onclick="submitPay()">Save payment</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+    '<label>Payment screenshot (recommended)</label>'+
+    '<input type="file" id="f_proof" accept="image/*" onchange="onProofPick(this)" style="padding:10px">'+
+    '<div id="proofPreview" style="margin-top:8px"></div>'+
+    '<button class="btn primary" onclick="submitPay()">Submit payment</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
 async function submitPay(){ const vId=$("f_vendor").value; const amt=parseFloat($("f_amount").value);
   if(!amt||amt<=0){ toast("Enter an amount",true); return; }
-  try{ await api("POST","/api/payments",{counterpartyId:vId,amount:amt,method:_payMethod}); await refreshAll(); closeModal(); toast("Payment recorded — balance updated"); render(); }catch(e){ toast(e.message,true); }
+  try{ const body={counterpartyId:vId,amount:amt,method:_payMethod}; if(_proofData) body.proof=_proofData;
+    const r=await api("POST","/api/payments",body); await refreshAll(); closeModal();
+    toast(r.status==="Pending"?"Sent — your vendor will confirm it":"Payment recorded"); render(); }catch(e){ toast(e.message,true); }
 }
 function openRecvModal(rId){ _payMethod="e-Transfer"; const r=rById(rId)||{name:"Customer"};
   openModal('<h3>Record payment received</h3><p>From '+escapeHtml(r.name)+'. The shared balance updates for both of you.</p>'+
@@ -910,16 +963,30 @@ function toast(msg,isErr){ const t=$("toast"); t.textContent=msg; t.className="t
 document.addEventListener("click",function(e){ if(e.target&&e.target.id==="modal") closeModal(); });
 
 /* ========== INVITES + BULK IMPORT ========== */
+let pendingJoinCode=null;
 async function detectInvite(){
   const m = location.pathname.match(/^\/join\/([a-z0-9-]+)/i);
   if(!m) return;
+  pendingJoinCode = m[1];
+  if(token) return; // logged in — tryRestoreSession will connect
   try{
     const r = await api("GET","/api/invite/"+m[1]);
-    inviter = r.inviter;
+    inviter = r.inviter; inviter.code = m[1];
     authMode = "signup";
     authRole = inviter.role === "vendor" ? "restaurant" : "vendor";
     if(!me) render();
   }catch{}
+}
+async function consumePendingJoin(){
+  if(!pendingJoinCode || !me) return;
+  const code = pendingJoinCode; pendingJoinCode = null;
+  try{
+    const r = await api("POST","/api/connect",{code});
+    history.replaceState(null,"","/app");
+    await refreshAll();
+    toast("Connected with "+r.connected.name+" ✓");
+    render();
+  }catch(e){ toast(e.message,true); }
 }
 async function copyInviteLink(){
   try{
@@ -928,6 +995,53 @@ async function copyInviteLink(){
     if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(url); toast("Invite link copied — share it anywhere"); }
     else { prompt("Copy your invite link:", url); }
   }catch(e){ toast(e.message, true); }
+}
+function openConnectModal(){
+  openModal('<h3>Add a vendor</h3><p>Paste the invite link or code your vendor shared with you. Don\'t have one? Copy your own link below and send it to them.</p>'+
+    '<label>Vendor\'s invite link or code</label><input id="f_code" placeholder="vlink.systems/join/their-code  or  their-code">'+
+    '<button class="btn primary" onclick="submitConnect()">Connect</button>'+
+    '<button class="btn ghost" onclick="closeModal();copyInviteLink()">Copy my invite link instead</button>'+
+    '<button class="btn ghost" onclick="closeModal()">Cancel</button>');
+}
+async function submitConnect(){
+  let raw=$("f_code").value.trim(); if(!raw){ toast("Paste a link or code",true); return; }
+  const m = raw.match(/\/join\/([a-z0-9-]+)/i);
+  const code = (m ? m[1] : raw).toLowerCase();
+  try{ const r=await api("POST","/api/connect",{code}); await refreshAll(); closeModal(); toast("Connected with "+r.connected.name+" ✓"); render(); }
+  catch(e){ toast(e.message,true); }
+}
+// Downscale an image file to a compact JPEG data URL (max 1280px)
+function fileToProof(file){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      const max=1280; let w=img.width,h=img.height;
+      if(Math.max(w,h)>max){ const k=max/Math.max(w,h); w=Math.round(w*k); h=Math.round(h*k); }
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg",0.8));
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error("Couldn't read that image")); };
+    img.src=url;
+  });
+}
+let _proofData=null;
+async function onProofPick(input){
+  const f=input.files && input.files[0]; if(!f) return;
+  try{ _proofData=await fileToProof(f); const pv=$("proofPreview"); if(pv){ pv.innerHTML='<img src="'+_proofData+'" style="max-width:100%;border-radius:10px;border:1px solid var(--line)">'; } }
+  catch(e){ toast(e.message,true); }
+}
+async function viewProof(pid){
+  try{ const r=await api("GET","/api/payments/"+pid+"/proof");
+    openModal('<h3>Payment screenshot</h3><img src="'+r.proof+'" style="max-width:100%;border-radius:12px;border:1px solid var(--line);margin-top:8px">'+
+      '<button class="btn ghost" onclick="closeModal()">Close</button>');
+  }catch(e){ toast(e.message,true); }
+}
+async function reviewClaim(pid, action){
+  try{ await api("PATCH","/api/payments/"+pid,{action}); await refreshAll(); toast(action==="confirm"?"Payment confirmed ✓":"Payment declined"); render(); }
+  catch(e){ toast(e.message,true); }
 }
 function openBulkImportModal(){
   openModal('<h3>Import your catalogue</h3><p>Paste your price list — one product per line, price at the end. Example:<br><i>Basmati Rice 20kg, 46<br>Toor Dal 10kg, 31.50</i></p>'+
