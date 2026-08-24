@@ -2,7 +2,7 @@
   "name": "Vlink — Restaurants & Vendors",
   "short_name": "Vlink",
   "description": "The supply link between restaurants and their vendors. Order groceries, track balances, run your kitchen.",
-  "start_url": "/",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

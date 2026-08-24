@@ -1,8 +1,9 @@
 // Minimal service worker: enough for browsers to consider Tabe installable.
 // Caches the app shell (HTML + manifest + icons). API traffic always goes to network.
-const CACHE = "tabe-shell-v1";
+const CACHE = "vlink-shell-v2";
 const SHELL = [
   "/",
+  "/app",
   "/index.html",
   "/manifest.json",
   "/icon-192.png",

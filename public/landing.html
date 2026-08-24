@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vlink — Order supplies. Track every dollar. Run your kitchen.</title>
+<meta name="description" content="Vlink connects restaurants with their vendors. Order groceries in seconds, and the running balance — the khata — writes itself.">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="theme-color" content="#0e3530">
+<meta property="og:title" content="Vlink — the supply link between restaurants & vendors">
+<meta property="og:description" content="Order groceries in seconds. The running balance writes itself.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0f1a17; --muted:#6b7872; --cream:#f6f5f0; --line:#ebe7dc;
+  --brand:#1f5a4f; --brand-d:#0e3530; --brand-l:#e6efeb;
+  --accent:#d68240; --accent-l:#f1c592; --accent-pale:#fbeedd;
+  --green:#2e8b57; --red:#c0492f; --blue:#3e6ca0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,sans-serif;color:var(--ink);background:var(--cream);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.serif{font-family:'DM Serif Display',Georgia,serif;font-weight:400}
+a{text-decoration:none;color:inherit}
+img{max-width:100%}
+
+/* ============ NAV ============ */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
+  padding:16px 24px;transition:background .3s,box-shadow .3s}
+.nav.scrolled{background:rgba(246,245,240,.92);backdrop-filter:blur(12px);box-shadow:0 1px 0 rgba(15,26,23,.06)}
+.nav .logo{font-family:'DM Serif Display',serif;font-size:28px;color:#fff;transition:color .3s}
+.nav.scrolled .logo{color:var(--brand-d)}
+.nav .logo span{color:var(--accent-l)}
+.nav.scrolled .logo span{color:var(--accent)}
+.nav .links{display:flex;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:30px;font-weight:600;font-size:14.5px;
+  cursor:pointer;border:none;font-family:inherit;transition:transform .15s,box-shadow .15s,background .2s}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn-ghost{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.nav.scrolled .btn-ghost{background:transparent;color:var(--brand);border-color:var(--brand)}
+.btn-accent{background:var(--accent);color:#fff;box-shadow:0 6px 20px rgba(214,130,64,.35)}
+.btn-accent:hover{box-shadow:0 10px 26px rgba(214,130,64,.45)}
+.btn-brand{background:var(--brand);color:#fff;box-shadow:0 6px 20px rgba(31,90,79,.3)}
+.btn-lg{padding:15px 32px;font-size:16px;border-radius:34px}
+
+/* ============ HERO ============ */
+.hero{position:relative;min-height:100svh;background:linear-gradient(160deg,#1f5a4f 0%,#123f37 55%,#0e3530 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;
+  padding:110px 24px 80px;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:auto -10% -40% -10%;height:60%;
+  background:radial-gradient(ellipse at center,rgba(241,197,146,.14),transparent 65%)}
+.hero h1{font-size:clamp(40px,7.5vw,84px);line-height:1.04;letter-spacing:-.02em;max-width:960px;position:relative;z-index:2}
+.hero h1 em{font-style:normal;color:var(--accent-l)}
+.hero p.sub{margin-top:22px;font-size:clamp(16px,2.2vw,20px);color:rgba(255,255,255,.82);max-width:600px;
+  line-height:1.55;font-weight:500;position:relative;z-index:2}
+.hero .ctas{margin-top:36px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;position:relative;z-index:2}
+.hero .hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.55);
+  font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:8px}
+.hero .hint .wheel{width:22px;height:34px;border:2px solid rgba(255,255,255,.4);border-radius:12px;position:relative}
+.hero .hint .wheel::after{content:"";position:absolute;top:6px;left:50%;width:4px;height:8px;margin-left:-2px;
+  background:rgba(255,255,255,.7);border-radius:4px;animation:wheel 1.6s ease-in-out infinite}
+@keyframes wheel{0%{transform:translateY(0);opacity:1}70%{transform:translateY(10px);opacity:0}100%{transform:translateY(0);opacity:0}}
+/* floating groceries */
+.float{position:absolute;font-size:clamp(30px,4.5vw,56px);opacity:.85;filter:drop-shadow(0 12px 20px rgba(0,0,0,.28));
+  will-change:transform;z-index:1;user-select:none;pointer-events:none}
+.f1{top:16%;left:8%}  .f2{top:24%;right:10%} .f3{bottom:26%;left:13%}
+.f4{bottom:20%;right:15%} .f5{top:55%;left:4%} .f6{top:48%;right:4%}
+.f7{top:12%;left:42%} .f8{bottom:12%;left:45%}
+
+/* ============ SCROLL-TELLING ============ */
+.story{position:relative;background:var(--cream)}
+.story-track{height:440vh;position:relative}
+.story-sticky{position:sticky;top:0;height:100svh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.story-grid{display:grid;grid-template-columns:1fr 380px 1fr;gap:40px;align-items:center;width:100%;max-width:1180px;padding:0 24px}
+.story-copy{position:relative;min-height:300px}
+.story-step{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+  opacity:0;transform:translateY(34px);transition:opacity .5s ease,transform .5s ease;pointer-events:none}
+.story-step.active{opacity:1;transform:translateY(0);pointer-events:auto}
+.story-step .kicker{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.story-step h2{font-size:clamp(28px,3.6vw,44px);line-height:1.1;letter-spacing:-.02em;margin-bottom:16px}
+.story-step p{font-size:16.5px;line-height:1.6;color:var(--muted);font-weight:500;max-width:400px}
+.story-copy.right .story-step{align-items:flex-start;text-align:left}
+.progress-dots{position:absolute;left:24px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px}
+.progress-dots .dot{width:8px;height:8px;border-radius:50%;background:var(--line);transition:background .3s,height .3s}
+.progress-dots .dot.on{background:var(--brand);height:24px;border-radius:6px}
+
+/* phone mockup */
+.phone{width:340px;height:700px;background:#0b1613;border-radius:48px;padding:12px;position:relative;
+  box-shadow:0 40px 90px rgba(14,53,48,.35),0 0 0 2px rgba(255,255,255,.06) inset;margin:0 auto}
+.phone .screen{background:var(--cream);border-radius:38px;height:100%;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:120px;height:26px;background:#0b1613;
+  border-radius:14px;z-index:50}
+.pbar{background:var(--brand);color:#fff;padding:42px 18px 14px;flex:0 0 auto}
+.pbar .pt{font-weight:700;font-size:15px}
+.pbar .ps{font-size:10.5px;opacity:.75;margin-top:2px;font-weight:500}
+.pbody{flex:1;position:relative;overflow:hidden}
+.pscreen{position:absolute;inset:0;padding:14px;opacity:0;transform:translateX(40px);transition:opacity .5s,transform .5s;overflow:hidden}
+.pscreen.active{opacity:1;transform:translateX(0)}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:9px;
+  box-shadow:0 2px 8px rgba(15,26,23,.05);display:flex;align-items:center;gap:10px;font-size:13px}
+.pico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto;
+  background:linear-gradient(135deg,#f7f3e9,#e9e3d2)}
+.pico.g{background:linear-gradient(135deg,#2e8b57,#1d5e3a)}
+.pn{font-weight:600;font-size:13px}
+.pm{font-size:11px;color:var(--muted);font-weight:500;margin-top:1px}
+.pright{margin-left:auto;text-align:right;font-weight:700;font-size:13px}
+.ppill{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:12px}
+.ppill.amber{background:#fbecd6;color:#b07024} .ppill.blue{background:#e7eef7;color:#3e6ca0}
+.ppill.green{background:#e3f3ea;color:#2e8b57}
+.pbtn{background:var(--brand);color:#fff;text-align:center;font-weight:600;font-size:13px;border-radius:12px;padding:12px;margin-top:6px}
+.pbtn.acc{background:var(--accent)}
+.psum{background:linear-gradient(135deg,#1f5a4f,#0e3530);border-radius:16px;color:#fff;padding:16px;margin-bottom:11px}
+.psum .l{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.psum .v{font-size:26px;font-weight:700;margin-top:3px;letter-spacing:-.02em}
+.pled{display:flex;align-items:center;padding:9px 2px;border-bottom:1px solid #f3efe5;font-size:12px;background:#fff}
+.pled:last-child{border-bottom:none}
+.pled .a{flex:1}.pled .t{font-weight:600;font-size:12px}.pled .d{font-size:10px;color:var(--muted)}
+.pled .amt{font-weight:700;font-size:12px}
+.red{color:var(--red)}.grn{color:var(--green)}
+.typing-item{opacity:0;transform:translateY(8px);animation:pop .45s forwards}
+.pscreen.active .typing-item:nth-child(2){animation-delay:.15s}
+.pscreen.active .typing-item:nth-child(3){animation-delay:.3s}
+.pscreen.active .typing-item:nth-child(4){animation-delay:.45s}
+.pscreen.active .typing-item:nth-child(5){animation-delay:.6s}
+@keyframes pop{to{opacity:1;transform:translateY(0)}}
+.checkmark{width:74px;height:74px;border-radius:50%;background:var(--brand-l);display:flex;align-items:center;justify-content:center;
+  margin:18px auto 10px;color:var(--brand);font-size:34px}
+
+/* ============ STATS ============ */
+.stats{background:var(--brand-d);color:#fff;padding:90px 24px}
+.stats .wrap{max-width:1000px;margin:0 auto;text-align:center}
+.stats h2{font-size:clamp(26px,3.6vw,40px);letter-spacing:-.02em;margin-bottom:8px}
+.stats p.sub{color:rgba(255,255,255,.7);font-weight:500;margin-bottom:52px}
+.stats .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:36px}
+.stat .num{font-family:'DM Serif Display',serif;font-size:clamp(40px,5.5vw,64px);color:var(--accent-l);line-height:1}
+.stat .lbl{margin-top:10px;font-weight:600;font-size:14px;color:rgba(255,255,255,.85)}
+.stat .sub{margin-top:4px;font-size:12.5px;color:rgba(255,255,255,.55);font-weight:500}
+
+/* ============ FEATURES ============ */
+.features{padding:110px 24px;max-width:1180px;margin:0 auto}
+.features .head{text-align:center;max-width:640px;margin:0 auto 64px}
+.features .head .kicker{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.features .head h2{font-size:clamp(30px,4.2vw,50px);letter-spacing:-.02em;line-height:1.1}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+.fcard{background:#fff;border:1px solid var(--line);border-radius:22px;padding:30px;
+  opacity:0;transform:translateY(36px);transition:opacity .6s ease,transform .6s ease,box-shadow .25s}
+.fcard.reveal{opacity:1;transform:translateY(0)}
+.fcard:hover{box-shadow:0 18px 46px rgba(15,26,23,.09)}
+.fcard .fico{width:52px;height:52px;border-radius:15px;background:var(--brand-l);color:var(--brand);
+  display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:20px}
+.fcard.alt .fico{background:var(--accent-pale);color:var(--accent)}
+.fcard h3{font-size:19px;letter-spacing:-.015em;margin-bottom:9px}
+.fcard p{font-size:14.5px;line-height:1.6;color:var(--muted);font-weight:500}
+
+/* ============ AUDIENCE SPLIT ============ */
+.split{max-width:1180px;margin:0 auto;padding:0 24px 110px;display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.side{border-radius:26px;padding:44px;color:#fff;position:relative;overflow:hidden;
+  opacity:0;transform:translateY(36px);transition:opacity .6s,transform .6s}
+.side.reveal{opacity:1;transform:translateY(0)}
+.side.rest{background:linear-gradient(150deg,#1f5a4f,#0e3530)}
+.side.vend{background:linear-gradient(150deg,#b56826,#7a3f12)}
+.side .big-emoji{position:absolute;right:-16px;bottom:-20px;font-size:130px;opacity:.14;transform:rotate(-8deg)}
+.side h3{font-size:26px;letter-spacing:-.02em;margin-bottom:18px}
+.side ul{list-style:none;display:flex;flex-direction:column;gap:12px;margin-bottom:28px}
+.side li{display:flex;gap:10px;font-size:15px;font-weight:500;line-height:1.45;color:rgba(255,255,255,.9)}
+.side li::before{content:"✓";font-weight:800;color:var(--accent-l);flex:0 0 auto}
+.side.vend li::before{color:#ffe0b8}
+.side .btn{background:#fff}
+.side.rest .btn{color:var(--brand-d)} .side.vend .btn{color:#7a3f12}
+
+/* ============ CTA ============ */
+.cta{background:linear-gradient(160deg,#1f5a4f,#0e3530);color:#fff;text-align:center;padding:110px 24px;position:relative;overflow:hidden}
+.cta::before{content:"";position:absolute;left:-80px;top:-80px;width:280px;height:280px;border-radius:50%;background:rgba(255,255,255,.04)}
+.cta::after{content:"";position:absolute;right:-60px;bottom:-90px;width:240px;height:240px;border-radius:50%;background:rgba(241,197,146,.08)}
+.cta h2{font-size:clamp(32px,5vw,56px);letter-spacing:-.02em;max-width:760px;margin:0 auto 18px;position:relative;z-index:2}
+.cta h2 em{font-style:normal;color:var(--accent-l)}
+.cta p{color:rgba(255,255,255,.78);font-weight:500;font-size:17px;margin-bottom:38px;position:relative;z-index:2}
+.cta .ctas{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative;z-index:2}
+
+/* ============ FOOTER ============ */
+.footer{background:var(--brand-d);color:rgba(255,255,255,.6);padding:36px 24px;display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:14px;font-size:13px;font-weight:500;border-top:1px solid rgba(255,255,255,.08)}
+.footer .logo{font-family:'DM Serif Display',serif;font-size:22px;color:#fff}
+.footer .logo span{color:var(--accent-l)}
+
+/* ============ RESPONSIVE ============ */
+@media(max-width:960px){
+  .story-grid{grid-template-columns:1fr;gap:18px;padding:0 18px}
+  .story-copy{min-height:170px;order:2}
+  .story-copy.left{display:none}
+  .story-copy.right .story-step{align-items:center;text-align:center}
+  .story-step p{max-width:100%}
+  .phone{width:250px;height:520px;border-radius:38px;padding:9px;order:1}
+  .phone .screen{border-radius:30px}
+  .pbar{padding:32px 14px 10px}
+  .psum .v{font-size:20px}
+  .progress-dots{display:none}
+  .split{grid-template-columns:1fr}
+  .story-track{height:480vh}
+}
+@media(prefers-reduced-motion:reduce){
+  .float{display:none}
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" id="nav">
+  <a class="logo" href="/">V<span>link</span></a>
+  <div class="links">
+    <a class="btn btn-ghost" href="/app">Sign in</a>
+    <a class="btn btn-accent" href="/app">Get started</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero" id="hero">
+  <span class="float f1" data-speed="0.35">🍚</span>
+  <span class="float f2" data-speed="0.5">🧅</span>
+  <span class="float f3" data-speed="0.42">🧀</span>
+  <span class="float f4" data-speed="0.6">🌶️</span>
+  <span class="float f5" data-speed="0.3">🫙</span>
+  <span class="float f6" data-speed="0.55">🍅</span>
+  <span class="float f7" data-speed="0.48">🌾</span>
+  <span class="float f8" data-speed="0.38">🥔</span>
+  <h1 class="serif">Order supplies in seconds.<br>The <em>khata</em> writes itself.</h1>
+  <p class="sub">Vlink connects your restaurant with the vendors you already trust — one place to order, track deliveries, and always know exactly who owes what.</p>
+  <div class="ctas">
+    <a class="btn btn-accent btn-lg" href="/app">Start free today</a>
+    <a class="btn btn-ghost btn-lg" href="#story">See how it works ↓</a>
+  </div>
+  <div class="hint"><div class="wheel"></div>Scroll</div>
+</header>
+
+<!-- SCROLL-TELLING -->
+<section class="story" id="story">
+  <div class="story-track" id="storyTrack">
+    <div class="story-sticky">
+      <div class="progress-dots" id="dots">
+        <div class="dot on"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+      <div class="story-grid">
+        <div class="story-copy left"></div>
+
+        <!-- Phone -->
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="pbar"><div class="pt" id="phoneTitle">Guruji Foods</div><div class="ps" id="phoneSub">Browse &amp; order</div></div>
+            <div class="pbody">
+
+              <!-- Screen 1: ordering -->
+              <div class="pscreen active" data-step="0">
+                <div class="pcard typing-item"><div class="pico">🍚</div><div><div class="pn">Basmati Rice 20kg</div><div class="pm">$46.00</div></div><div class="pright" style="color:var(--brand)">2 ✓</div></div>
+                <div class="pcard typing-item"><div class="pico">🟡</div><div><div class="pn">Toor Dal 10kg</div><div class="pm">$31.50</div></div><div class="pright" style="color:var(--brand)">1 ✓</div></div>
+                <div class="pcard typing-item"><div class="pico">🌾</div><div><div class="pn">Atta / Flour 20kg</div><div class="pm">$24.00</div></div><div class="pright" style="color:var(--brand)">1 ✓</div></div>
+                <div class="pcard typing-item"><div class="pico">🫙</div><div><div class="pn">Ghee 5L</div><div class="pm">$57.00</div></div><div class="pright" style="color:var(--muted)">+ Add</div></div>
+                <div class="typing-item"><div class="pbtn acc">Send order · $147.50</div></div>
+              </div>
+
+              <!-- Screen 2: vendor confirms -->
+              <div class="pscreen" data-step="1">
+                <div class="psum typing-item"><div class="l">New order</div><div class="v">$147.50</div><div class="pm" style="color:rgba(255,255,255,.75)">Spice Route Kitchen · 3 items</div></div>
+                <div class="pled typing-item" style="background:transparent"><div class="a"><div class="t">2× Basmati Rice 20kg</div></div><div class="amt">$92.00</div></div>
+                <div class="pled typing-item" style="background:transparent"><div class="a"><div class="t">1× Toor Dal 10kg</div></div><div class="amt">$31.50</div></div>
+                <div class="pled typing-item" style="background:transparent"><div class="a"><div class="t">1× Atta / Flour 20kg</div></div><div class="amt">$24.00</div></div>
+                <div class="typing-item"><div class="pbtn">✓ Confirm order</div></div>
+              </div>
+
+              <!-- Screen 3: ledger -->
+              <div class="pscreen" data-step="2">
+                <div class="psum typing-item"><div class="l">Outstanding balance</div><div class="v">$147.50</div><div class="pm" style="color:rgba(255,255,255,.75)">with Guruji Foods</div></div>
+                <div class="pcard typing-item" style="flex-direction:column;align-items:stretch;gap:0">
+                  <div class="pled"><div class="a"><div class="t">Order #4821</div><div class="d">Today</div></div><div class="amt red">+$147.50</div></div>
+                  <div class="pled"><div class="a"><div class="t">Payment · e-Transfer</div><div class="d">May 21</div></div><div class="amt grn">−$100.00</div></div>
+                  <div class="pled"><div class="a"><div class="t">Order #4736</div><div class="d">May 18</div></div><div class="amt red">+$100.00</div></div>
+                </div>
+                <div class="pm typing-item" style="text-align:center;margin-top:8px">Both sides see the same numbers. Always.</div>
+              </div>
+
+              <!-- Screen 4: settled -->
+              <div class="pscreen" data-step="3">
+                <div class="checkmark typing-item">✓</div>
+                <div class="typing-item" style="text-align:center;font-weight:700;font-size:17px">Payment recorded</div>
+                <div class="typing-item pm" style="text-align:center;margin-top:4px">$147.50 · e-Transfer</div>
+                <div class="pcard typing-item" style="margin-top:16px"><div class="pico g">🏪</div><div><div class="pn">Guruji Foods</div><div class="pm">All settled</div></div><div class="pright grn">$0.00</div></div>
+                <div class="pcard typing-item"><div class="pico g">🧅</div><div><div class="pn">Day to Day Wholesale</div><div class="pm">All settled</div></div><div class="pright grn">$0.00</div></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Copy -->
+        <div class="story-copy right">
+          <div class="story-step active" data-step="0">
+            <div class="kicker">Step 1 — Order</div>
+            <h2 class="serif">Skip the calls. Tap what you need.</h2>
+            <p>Your vendor's whole catalogue, live prices and all. Build the week's order in under a minute — no phone tag, no forgotten items, no misheard quantities.</p>
+          </div>
+          <div class="story-step" data-step="1">
+            <div class="kicker">Step 2 — Confirm</div>
+            <h2 class="serif">Your vendor sees it instantly.</h2>
+            <p>One tap to confirm. The restaurant knows it's coming, the vendor packs an exact list, and nobody scribbles anything on the back of a receipt.</p>
+          </div>
+          <div class="story-step" data-step="2">
+            <div class="kicker">Step 3 — The ledger</div>
+            <h2 class="serif">The khata writes itself.</h2>
+            <p>Every confirmed order becomes a bill. Every payment is logged. The running balance updates for both sides — no more "how much was left?" at month end.</p>
+          </div>
+          <div class="story-step" data-step="3">
+            <div class="kicker">Step 4 — Settle</div>
+            <h2 class="serif">Everyone knows. Nobody chases.</h2>
+            <p>Record a payment in seconds — cash, e-Transfer, cheque. Balances clear, both sides get notified, and the relationship stays about food, not paperwork.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats">
+  <div class="wrap">
+    <h2 class="serif">Built for the way kitchens really work</h2>
+    <p class="sub">The problem is real. The fix is simple.</p>
+    <div class="grid">
+      <div class="stat"><div class="num" data-count="79000">0</div><div class="lbl">restaurants in Canada</div><div class="sub">full-service establishments</div></div>
+      <div class="stat"><div class="num" data-count="63" data-suffix="%">0</div><div class="lbl">are independents</div><div class="sub">ordering by phone, text &amp; memory</div></div>
+      <div class="stat"><div class="num" data-count="30" data-suffix=" sec">0</div><div class="lbl">to place an order on Vlink</div><div class="sub">from open to sent</div></div>
+      <div class="stat"><div class="num" data-count="0" data-prefix="$">0</div><div class="lbl">to get started</div><div class="sub">free for your first vendors</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="head">
+    <div class="kicker">Everything in one place</div>
+    <h2 class="serif">More than ordering</h2>
+  </div>
+  <div class="fgrid">
+    <div class="fcard"><div class="fico">📒</div><h3>Shared running ledger</h3><p>Bills and payments in one trusted record both sides can see. The digital khata your business already runs on — minus the notebook.</p></div>
+    <div class="fcard alt"><div class="fico">🏷️</div><h3>Offers &amp; deals</h3><p>Vendors post specials; restaurants see them right where they order. Move stock faster, save money on staples.</p></div>
+    <div class="fcard"><div class="fico">🧺</div><h3>Pantry alerts</h3><p>Set par levels for your staples. When rice or paneer runs low, Vlink flags it and takes you straight to reorder.</p></div>
+    <div class="fcard alt"><div class="fico">📦</div><h3>Delivery tracking</h3><p>See exactly what's coming this week. Vendors get a clean pick list for today's route. Mark received, done.</p></div>
+    <div class="fcard"><div class="fico">📈</div><h3>Spend insights</h3><p>Where does the money go? See spending by vendor at a glance and make smarter buying decisions.</p></div>
+    <div class="fcard alt"><div class="fico">✉️</div><h3>Instant notifications</h3><p>New orders, confirmations, payments — the right person hears about it the moment it happens.</p></div>
+  </div>
+</section>
+
+<!-- SPLIT -->
+<section class="split">
+  <div class="side rest">
+    <div class="big-emoji">🍛</div>
+    <h3 class="serif">For restaurants</h3>
+    <ul>
+      <li>Order from all your vendors in one app</li>
+      <li>Always know exactly who you owe</li>
+      <li>Pantry alerts before you run out mid-service</li>
+      <li>Reorder your usual in two taps</li>
+    </ul>
+    <a class="btn" href="/app">Create restaurant account</a>
+  </div>
+  <div class="side vend">
+    <div class="big-emoji">🏪</div>
+    <h3 class="serif">For vendors</h3>
+    <ul>
+      <li>Orders arrive clean — no voicemails to decode</li>
+      <li>See who owes you, send polite reminders</li>
+      <li>Import your whole price list in one paste</li>
+      <li>Invite every customer with one link</li>
+    </ul>
+    <a class="btn" href="/app">Create vendor account</a>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2 class="serif">Your suppliers are one <em>link</em> away.</h2>
+  <p>Free to start. Works on any phone. Set up in five minutes.</p>
+  <div class="ctas">
+    <a class="btn btn-accent btn-lg" href="/app">Get started free</a>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="logo">V<span>link</span></div>
+  <div>Made in Surrey, BC 🇨🇦 · © 2026 Jungle Labs Inc.</div>
+</footer>
+
+<script>
+"use strict";
+// Nav background on scroll
+const nav = document.getElementById("nav");
+addEventListener("scroll", () => nav.classList.toggle("scrolled", scrollY > 40), { passive: true });
+
+// Hero parallax floats
+const floats = [...document.querySelectorAll(".float")];
+let ticking = false;
+addEventListener("scroll", () => {
+  if (ticking) return; ticking = true;
+  requestAnimationFrame(() => {
+    const y = scrollY;
+    floats.forEach(f => { f.style.transform = "translateY(" + (y * parseFloat(f.dataset.speed)) + "px)"; });
+    ticking = false;
+  });
+}, { passive: true });
+
+// Scroll-telling: progress through storyTrack drives active step
+const track = document.getElementById("storyTrack");
+const steps = [...document.querySelectorAll(".story-step")];
+const screens = [...document.querySelectorAll(".pscreen")];
+const dots = [...document.querySelectorAll("#dots .dot")];
+const phoneTitle = document.getElementById("phoneTitle");
+const phoneSub = document.getElementById("phoneSub");
+const titles = [
+  ["Guruji Foods", "Browse & order"],
+  ["New order", "Vendor view"],
+  ["Ledger", "Spice Route Kitchen"],
+  ["All settled", "Ledger"]
+];
+let current = 0;
+function setStep(i) {
+  if (i === current) return; current = i;
+  steps.forEach(s => s.classList.toggle("active", +s.dataset.step === i));
+  screens.forEach(s => s.classList.toggle("active", +s.dataset.step === i));
+  dots.forEach((d, di) => d.classList.toggle("on", di === i));
+  phoneTitle.textContent = titles[i][0];
+  phoneSub.textContent = titles[i][1];
+}
+function onScrollStory() {
+  const rect = track.getBoundingClientRect();
+  const total = rect.height - innerHeight;
+  if (total <= 0) return;
+  const progress = Math.min(1, Math.max(0, -rect.top / total));
+  setStep(Math.min(3, Math.floor(progress * 4)));
+}
+addEventListener("scroll", onScrollStory, { passive: true });
+onScrollStory();
+
+// Reveal-on-scroll for cards and split sides
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("reveal"); io.unobserve(e.target); } });
+}, { threshold: 0.15 });
+document.querySelectorAll(".fcard, .side").forEach(el => io.observe(el));
+
+// Count-up stats
+const nums = [...document.querySelectorAll(".stat .num")];
+const io2 = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    io2.unobserve(e.target);
+    const el = e.target;
+    const target = parseInt(el.dataset.count, 10);
+    const prefix = el.dataset.prefix || "";
+    const suffix = el.dataset.suffix || "";
+    const dur = 1400, t0 = performance.now();
+    function frame(t) {
+      const p = Math.min(1, (t - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = prefix + Math.round(target * eased).toLocaleString() + suffix;
+      if (p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  });
+}, { threshold: 0.4 });
+nums.forEach(n => io2.observe(n));
+</script>
+</body>
+</html>
