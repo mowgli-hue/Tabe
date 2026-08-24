@@ -166,6 +166,21 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helv
 .auth .demo{background:var(--brand-l);border:1px solid #cee0d9;border-radius:12px;padding:13px;margin-top:18px;font-size:12.5px;color:var(--brand-d);line-height:1.5}
 .auth .demo b{font-weight:700}
 .auth .demo .btnrow{margin-top:9px}
+/* ===== Full-screen desktop sign-in ===== */
+body.authfull #app{max-width:none}
+@media(min-width:520px){ body.authfull{padding:0} body.authfull #app{min-height:100vh;border-radius:0} }
+.auth .hero .feats{display:none}
+@media(min-width:900px){
+  .auth{flex-direction:row;min-height:100vh}
+  .auth .hero{flex:1.1;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;padding:88px;min-height:100vh}
+  .auth .hero .lg{font-size:88px}
+  .auth .hero .tag{font-size:17px;max-width:430px;line-height:1.5}
+  .auth .hero .feats{display:flex;flex-direction:column;gap:15px;margin-top:40px;position:relative;z-index:1}
+  .auth .hero .feat{display:flex;gap:11px;color:rgba(255,255,255,.87);font-size:15px;font-weight:500;align-items:center}
+  .auth .hero .feat .fdot{width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:13px;flex:0 0 auto}
+  .auth .body{flex:1;display:flex;flex-direction:column;justify-content:center;padding:64px 80px;overflow-y:auto;max-height:100vh}
+  .auth .formcol{width:100%;max-width:440px;margin:0 auto}
+}
 .actrow{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line-2);font-size:13px}
 .actrow:last-child{border-bottom:none}
 .actrow .ico{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background:var(--brand-l);color:var(--brand)}
@@ -333,7 +348,8 @@ function obStep(done, n, title, sub, action){
 function render(){
   const app=$("app");
   if(route.view==="loading"){ app.innerHTML='<div class="empty" style="margin-top:120px"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:18px">Loading…</div></div>'; return; }
-  if(route.view==="auth"){ app.innerHTML=authHTML(); return; }
+  if(route.view==="auth"){ document.body.classList.add("authfull"); app.innerHTML=authHTML(); return; }
+  document.body.classList.remove("authfull");
   if(!me){ route={view:"auth"}; return render(); }
   let body="",bar="",nav="",float="";
   if(me.role==="restaurant"){ const out=renderRestaurant(); body=out.body;bar=out.bar;nav=out.nav;float=out.float; }
@@ -343,7 +359,12 @@ function render(){
 
 /* ========== AUTH SCREENS ========== */
 function authHTML(){
-  let h='<div class="auth"><div class="hero"><div class="lg">V<span>link</span></div><div class="tag">The supply link between restaurants & their vendors</div></div><div class="body">';
+  let h='<div class="auth"><div class="hero"><div class="lg">V<span>link</span></div><div class="tag">The supply link between restaurants & their vendors</div>'+
+    '<div class="feats">'+
+    '<div class="feat"><span class="fdot">🛒</span>Order from all your vendors in one place</div>'+
+    '<div class="feat"><span class="fdot">📒</span>The running balance writes itself</div>'+
+    '<div class="feat"><span class="fdot">🔔</span>Everyone knows the moment anything happens</div>'+
+    '</div></div><div class="body"><div class="formcol">';
   if(inviter){
     h+='<div style="background:var(--accent-l);border:1px solid #efd6b1;border-radius:12px;padding:13px;margin-bottom:16px">'+
       '<div style="font-family:\'Inter\';font-weight:700;font-size:14px;color:#5e3b15">'+(inviter.emoji||"👋")+' '+escapeHtml(inviter.name)+' invited you to Vlink</div>'+
@@ -369,7 +390,7 @@ function authHTML(){
     }
     h+='<button class="btn primary" style="margin-top:18px" onclick="submitSignup()">Create my account</button>';
   }
-  h+='</div></div>';
+  h+='</div></div></div>';
   return h;
 }
 function setAuthMode(m){ authMode=m; render(); }
@@ -386,7 +407,7 @@ function submitSignup(){
 /* ========== APP BAR + NAV ========== */
 function appbar(role,title,sub,back){
   return '<div class="appbar '+(role==="restaurant"?"r":"v")+'">'+(back?'<div class="back" onclick="'+back+'">'+icon("back",18)+'</div>':'')+
-    '<div><div class="ttl">'+title+'</div><div class="sub">'+sub+'</div></div><div class="grow"></div>'+
+    '<div><div class="ttl">'+escapeHtml(title)+'</div><div class="sub">'+escapeHtml(sub)+'</div></div><div class="grow"></div>'+
     '<span class="roleseg">'+(role==="restaurant"?"Restaurant":"Vendor")+'</span>'+
     '<span class="sw" onclick="logout()">Log out</span></div>';
 }
@@ -443,8 +464,8 @@ function rHome(){
     lows.forEach(p=>{ const v=p.vid?vById(p.vid):null;
       h+='<div class="scard" onclick="'+(v?'go(\'r_vendor\',{vendorId:\''+v.id+'\'})':'go(\'r_pantry\')')+'">'+
         '<div class="row"><div class="itemico">'+(p.emoji||"📦")+'</div></div>'+
-        '<div class="sn">'+p.name+'</div>'+
-        '<div class="sm2">'+p.stock+'/'+p.par+(v?' · '+v.name.split(" ")[0]:"")+'</div>'+
+        '<div class="sn">'+escapeHtml(p.name)+'</div>'+
+        '<div class="sm2">'+p.stock+'/'+p.par+(v?' · '+escapeHtml(v.name.split(" ")[0]):"")+'</div>'+
         '<div class="sv" style="color:var(--red)">Reorder</div></div>';
     });
     h+='</div>';
@@ -454,7 +475,7 @@ function rHome(){
     incoming.forEach(o=>{ const v=vById(o.v);
       h+='<div class="scard" onclick="openOrderModal(\''+o.id+'\')">'+
         '<div class="sd">'+o.date+'</div>'+
-        '<div class="sn">'+(v?v.name:"Unknown")+'</div>'+
+        '<div class="sn">'+escapeHtml(v?v.name:"Unknown")+'</div>'+
         '<div class="sm2">'+o.items.length+' item(s)</div>'+
         '<div class="sv">'+money(o.total)+'</div></div>';
     });
@@ -465,8 +486,8 @@ function rHome(){
   state.vendors.forEach(v=>{ const bal=balanceWith(v.id); const g=gradFor(v.id);
     h+='<div class="card tap" onclick="go(\'r_vendor\',{vendorId:\''+v.id+'\'})"><div class="row">'+
       '<div class="avatar grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
-      '<div style="min-width:0;flex:1"><div class="nm">'+v.name+'</div><div class="meta">'+(v.category||"")+'</div>'+
-      (v.cutoff?'<div style="margin-top:6px"><span class="pill">'+icon("clock",10)+v.cutoff+'</span></div>':"")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(v.name)+'</div><div class="meta">'+escapeHtml(v.category||"")+'</div>'+
+      (v.cutoff?'<div style="margin-top:6px"><span class="pill">'+icon("clock",10)+escapeHtml(v.cutoff)+'</span></div>':"")+'</div>'+
       '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">'+(bal>0?"you owe":"all paid")+'</div></div>'+
       '</div></div>'; });
   h+='<div class="sectionlabel">Quick actions</div><div class="qact">';
@@ -481,8 +502,8 @@ function rVendor(){
   if(!det) return '<div class="empty"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:14px">Loading vendor…</div></div>';
   const v=det.vendor; const bal=balanceWith(v.id); const g=gradFor(v.id);
   let h='<div class="card"><div class="row"><div class="avatar lg grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
-    '<div style="flex:1;min-width:0"><div class="nm" style="font-size:16px">'+v.name+'</div><div class="meta">'+(v.category||"")+'</div>'+
-    '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+(v.cutoff?'<span class="pill">'+icon("clock",10)+v.cutoff+'</span>':"")+(v.deliveryDays?'<span class="pill brand">'+icon("truck",10)+v.deliveryDays+'</span>':"")+'</div></div>'+
+    '<div style="flex:1;min-width:0"><div class="nm" style="font-size:16px">'+escapeHtml(v.name)+'</div><div class="meta">'+escapeHtml(v.category||"")+'</div>'+
+    '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">'+(v.cutoff?'<span class="pill">'+icon("clock",10)+escapeHtml(v.cutoff)+'</span>':"")+(v.deliveryDays?'<span class="pill brand">'+icon("truck",10)+escapeHtml(v.deliveryDays)+'</span>':"")+'</div></div>'+
     '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">balance</div></div></div></div>';
   det.offers.forEach(o=>{ h+='<div class="offer"><span class="tag">OFFER</span><div class="ot">'+escapeHtml(o.title)+'</div><div class="od">'+escapeHtml(o.description||"")+'</div><div class="ov">'+escapeHtml(o.expiry||"")+'</div></div>'; });
   h+='<div class="sectionlabel">Catalogue<span class="ct">'+det.items.length+'</span></div>';
@@ -503,12 +524,12 @@ function cartTotal(){ return Math.round(cartItems().reduce((s,x)=>s+x.p*x.q,0)*1
 function rCart(){
   const items=cartItems(); if(!items.length) return emptyState("Your order is empty","Add items from a vendor's catalogue.");
   const vid=items[0].vid, v=vById(vid);
-  let h='<div class="hd">'+v.name+'</div><div class="sub2">Review and send your order</div><div class="card">';
+  let h='<div class="hd">'+escapeHtml(v.name)+'</div><div class="sub2">Review and send your order</div><div class="card">';
   items.forEach(i=>{ h+='<div class="led"><div class="ld"><div class="lt">'+escapeHtml(i.n)+'</div><div class="ls">'+i.q+' × '+money(i.p)+'</div></div><div class="lv">'+money(i.p*i.q)+'</div></div>'; });
   h+='</div>';
-  if(v.minOrder>0 && cartTotal()<v.minOrder) h+='<div class="card" style="background:var(--amber-l);border-color:#f0dcc1"><div class="row"><div style="color:var(--amber)">'+icon("alert",18)+'</div><div class="meta" style="color:#8a6a3e">'+v.name+' has a minimum of '+money(v.minOrder)+'. You\'re at '+money(cartTotal())+'.</div></div></div>';
-  h+='<div class="card" style="background:var(--brand-l);border-color:#cee0d9"><div class="led" style="border:none"><div class="ld"><div class="lt" style="font-size:15px">Order total</div><div class="ls">Sent to '+v.name+' to confirm</div></div><div class="lv" style="font-size:18px">'+money(cartTotal())+'</div></div></div>';
-  h+='<button class="btn accent" onclick="placeOrder()">'+icon("send",16)+'Send order to '+v.name+'</button>'+
+  if(v.minOrder>0 && cartTotal()<v.minOrder) h+='<div class="card" style="background:var(--amber-l);border-color:#f0dcc1"><div class="row"><div style="color:var(--amber)">'+icon("alert",18)+'</div><div class="meta" style="color:#8a6a3e">'+escapeHtml(v.name)+' has a minimum of '+money(v.minOrder)+'. You\'re at '+money(cartTotal())+'.</div></div></div>';
+  h+='<div class="card" style="background:var(--brand-l);border-color:#cee0d9"><div class="led" style="border:none"><div class="ld"><div class="lt" style="font-size:15px">Order total</div><div class="ls">Sent to '+escapeHtml(v.name)+' to confirm</div></div><div class="lv" style="font-size:18px">'+money(cartTotal())+'</div></div></div>';
+  h+='<button class="btn accent" onclick="placeOrder()">'+icon("send",16)+'Send order to '+escapeHtml(v.name)+'</button>'+
      '<button class="btn ghost" onclick="go(\'r_vendor\',{vendorId:\''+vid+'\'})">Keep adding</button><div style="height:60px"></div>';
   return h;
 }
@@ -523,7 +544,7 @@ function rOrders(){
   if(!state.orders.length) return h+emptyState("No orders yet","Place your first order from a vendor.");
   state.orders.forEach(o=>{ const v=vById(o.v)||{name:"Unknown vendor",emoji:"🏪"}; const g=gradFor(o.v);
     h+='<div class="card tap"><div class="row" onclick="openOrderModal(\''+o.id+'\')"><div class="avatar sm grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
-      '<div style="min-width:0;flex:1"><div class="nm">'+v.name+' '+statusPill(o.status)+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(v.name)+' '+statusPill(o.status)+'</div>'+
       '<div class="meta">'+o.date+' · '+o.items.length+' item(s)'+(o.notes&&o.notes.length?' · '+o.notes.length+' note(s)':"")+'</div></div>'+
       '<div class="right"><div class="amt">'+money(o.total)+'</div></div></div>'+
       '<div style="margin-top:8px;font-size:11.5px;color:var(--muted)">'+o.items.map(i=>i.qty+"× "+escapeHtml(i.name)).join(" · ")+'</div>'+
@@ -543,11 +564,11 @@ function rLedger(){
       .sort((a,b)=>dateNum(b.d)-dateNum(a.d));
     const g=gradFor(v.id);
     h+='<div class="card tap" onclick="toggleLed(\''+v.id+'\')"><div class="row"><div class="avatar grad" style="--g1:'+g[0]+';--g2:'+g[1]+'">'+(v.emoji||"🏪")+'</div>'+
-      '<div><div class="nm">'+v.name+'</div><div class="meta">'+bills.length+' bill(s) · '+pays.length+' payment(s)</div></div>'+
+      '<div><div class="nm">'+escapeHtml(v.name)+'</div><div class="meta">'+bills.length+' bill(s) · '+pays.length+' payment(s)</div></div>'+
       '<div class="right"><div class="amt '+(bal>0?"owed":"clear")+'">'+(bal>0?money(bal):"Settled")+'</div><div class="lbl">'+(bal>0?"outstanding":"all clear")+'</div></div></div>'+
       '<div id="led_'+v.id+'" style="display:none;margin-top:10px;border-top:1px solid var(--line-2);padding-top:4px">'+
       (lines.length?lines.map(x=>'<div class="led"><div class="ld"><div class="lt">'+x.t+'</div><div class="ls">'+x.d+'</div></div><div class="lv '+(x.k==="bill"?"bill":"pay")+'">'+(x.k==="bill"?"+":"−")+money(x.v)+'</div></div>').join(""):'<div class="meta" style="padding:8px 2px">No activity yet.</div>')+
-      '<button class="btn primary sm" style="width:100%;margin-top:10px" onclick="event.stopPropagation();openPayModal(\''+v.id+'\')">'+icon("dollar",14)+'Pay '+v.name.split(" ")[0]+'</button></div></div>';
+      '<button class="btn primary sm" style="width:100%;margin-top:10px" onclick="event.stopPropagation();openPayModal(\''+v.id+'\')">'+icon("dollar",14)+'Pay '+escapeHtml(v.name.split(" ")[0])+'</button></div></div>';
   });
   h+='<div style="height:70px"></div>';
   return h;
@@ -571,10 +592,10 @@ function rPantry(){
     const low=p.stock<=Math.max(1,Math.floor(p.par*0.5));
     h+='<div class="pcard'+(low?" low":"")+'"><div class="row"><div class="itemico">'+(p.emoji||"📦")+'</div>'+
       '<div style="flex:1;min-width:0"><div class="nm2">'+escapeHtml(p.name)+'</div>'+
-      '<div class="pr">'+p.stock+' of '+p.par+' on hand'+(v?" · "+v.name:"")+'</div></div>'+
+      '<div class="pr">'+p.stock+' of '+p.par+' on hand'+(v?" · "+escapeHtml(v.name):"")+'</div></div>'+
       '<button class="iconbtn" onclick="openPantryModal(\''+p.id+'\')">'+icon("edit",13)+'</button></div>'+
       '<div class="pbar"><div class="fill" style="width:'+pct+'%"></div></div>'+
-      (v?'<button class="btn ghost sm" style="width:100%;margin-top:9px" onclick="go(\'r_vendor\',{vendorId:\''+v.id+'\'})">Reorder from '+v.name.split(" ")[0]+'</button>':"")+
+      (v?'<button class="btn ghost sm" style="width:100%;margin-top:9px" onclick="go(\'r_vendor\',{vendorId:\''+v.id+'\'})">Reorder from '+escapeHtml(v.name.split(" ")[0])+'</button>':"")+
       '</div>';
   });
   h+='<div style="height:80px"></div>';

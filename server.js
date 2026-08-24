@@ -170,13 +170,18 @@ const today = () => {
   const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const d = new Date(); return m[d.getMonth()] + " " + d.getDate();
 };
-const sanitizeUser = (u) => {
+// includeEmail: only true for the user's own profile (login/signup/me/profile).
+// Public listings must NOT leak member emails to other users.
+const sanitizeUser = (u, includeEmail = false) => {
   if (!u) return null;
-  const { password_hash, ...rest } = u;
+  const { password_hash, email, ...rest } = u;
+  if (includeEmail) rest.email = email;
   rest.minOrder = rest.min_order; delete rest.min_order;
   rest.deliveryDays = rest.delivery_days; delete rest.delivery_days;
   return rest;
 };
+// Trim + cap user-supplied text fields
+const clean = (v, max) => (v == null ? null : String(v).trim().slice(0, max) || null);
 const sanitizeItem = (i) => i && { id:i.id, vendor_id:i.vendor_id, n:i.name, e:i.emoji, p:i.price, stock: i.in_stock === 1 };
 const sanitizeOrder = (o, notesByOrder, itemsByOrder) => o && {
   id: o.id, v: o.vendor_id, r: o.restaurant_id, status: o.status, total: o.total, date: o.date,
@@ -206,6 +211,20 @@ function requireRole(role) {
   };
 }
 
+// ===== Simple in-memory rate limiter for auth endpoints =====
+// 20 attempts per IP per 10 minutes. Enough for humans, hostile to brute force.
+const authAttempts = new Map();
+function authRateLimit(req, res, next) {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "?";
+  const now = Date.now();
+  let rec = authAttempts.get(ip);
+  if (!rec || now - rec.start > 10 * 60 * 1000) { rec = { start: now, count: 0 }; authAttempts.set(ip, rec); }
+  rec.count++;
+  if (authAttempts.size > 10000) authAttempts.clear(); // memory guard
+  if (rec.count > 20) return res.status(429).json({ error: "Too many attempts. Please wait a few minutes and try again." });
+  next();
+}
+
 // ===== Express =====
 const app = express();
 app.use(cors());
@@ -219,9 +238,13 @@ app.get("/app", (_req, res) => res.sendFile(path.join(__dirname, "public", "inde
 app.use(express.static(path.join(__dirname, "public")));
 
 // --- Auth ---
-app.post("/api/signup", (req, res) => {
-  const { email, password, role, name, area, emoji, category, cutoff, deliveryDays, phone, minOrder } = req.body || {};
+app.post("/api/signup", authRateLimit, (req, res) => {
+  const b = req.body || {};
+  const email = clean(b.email, 120), password = b.password, role = b.role;
+  const name = clean(b.name, 80), area = clean(b.area, 80), emoji = clean(b.emoji, 4);
+  const category = clean(b.category, 120), cutoff = clean(b.cutoff, 120), deliveryDays = clean(b.deliveryDays, 120), phone = clean(b.phone, 30);
   if (!email || !password || !role || !name) return res.status(400).json({ error: "Missing fields" });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Enter a valid email address" });
   if (!["restaurant","vendor"].includes(role)) return res.status(400).json({ error: "Invalid role" });
   if (password.length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
   const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email.toLowerCase());
@@ -230,37 +253,37 @@ app.post("/api/signup", (req, res) => {
   const id = uid(role === "restaurant" ? "r" : "v");
   db.prepare(`INSERT INTO users (id,email,password_hash,role,name,area,emoji,category,cutoff,delivery_days,phone,min_order,created_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(id, email.toLowerCase(), hash, role, name, area||null, emoji||(role==="restaurant"?"🍽️":"🏪"),
-         category||null, cutoff||null, deliveryDays||null, phone||null, minOrder||0, new Date().toISOString());
+    .run(id, email.toLowerCase(), hash, role, name, area, emoji||(role==="restaurant"?"🍽️":"🏪"),
+         category, cutoff, deliveryDays, phone, Math.max(0, Number(b.minOrder)||0), new Date().toISOString());
   const token = jwt.sign({ id, role }, JWT_SECRET, { expiresIn: "30d" });
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(id);
-  res.json({ token, user: sanitizeUser(user) });
+  res.json({ token, user: sanitizeUser(user, true) });
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", authRateLimit, (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: "Email and password required" });
   const user = db.prepare("SELECT * FROM users WHERE email = ?").get(String(email).toLowerCase());
   if (!user) return res.status(401).json({ error: "Wrong email or password" });
   if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: "Wrong email or password" });
   const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "30d" });
-  res.json({ token, user: sanitizeUser(user) });
+  res.json({ token, user: sanitizeUser(user, true) });
 });
 
 app.get("/api/me", auth, (req, res) => {
-  res.json({ user: sanitizeUser(req.user) });
+  res.json({ user: sanitizeUser(req.user, true) });
 });
 
 app.patch("/api/profile", auth, (req, res) => {
   const u = req.user;
-  const { name, area, emoji, category, cutoff, deliveryDays, phone, minOrder } = req.body || {};
+  const b = req.body || {};
   db.prepare(`UPDATE users SET name=COALESCE(?,name), area=COALESCE(?,area), emoji=COALESCE(?,emoji),
     category=COALESCE(?,category), cutoff=COALESCE(?,cutoff), delivery_days=COALESCE(?,delivery_days),
     phone=COALESCE(?,phone), min_order=COALESCE(?,min_order) WHERE id=?`)
-    .run(name||null, area||null, emoji||null, category||null, cutoff||null, deliveryDays||null,
-         phone||null, (minOrder==null?null:minOrder), u.id);
+    .run(clean(b.name, 80), clean(b.area, 80), clean(b.emoji, 4), clean(b.category, 120), clean(b.cutoff, 120),
+         clean(b.deliveryDays, 120), clean(b.phone, 30), (b.minOrder==null?null:Math.max(0, Number(b.minOrder)||0)), u.id);
   const fresh = db.prepare("SELECT * FROM users WHERE id = ?").get(u.id);
-  res.json({ user: sanitizeUser(fresh) });
+  res.json({ user: sanitizeUser(fresh, true) });
 });
 
 // --- Public-ish vendor browsing (any authed user) ---
@@ -302,11 +325,23 @@ app.get("/api/orders", auth, (req, res) => {
 });
 
 app.post("/api/orders", auth, requireRole("restaurant"), (req, res) => {
-  const { vendorId, items } = req.body || {};
+  const { vendorId } = req.body || {};
+  let { items } = req.body || {};
   if (!vendorId || !Array.isArray(items) || !items.length) return res.status(400).json({ error: "vendorId and items required" });
+  if (items.length > 200) return res.status(400).json({ error: "Too many items in one order" });
   const v = db.prepare("SELECT * FROM users WHERE id=? AND role='vendor'").get(vendorId);
   if (!v) return res.status(404).json({ error: "Vendor not found" });
-  const total = Math.round(items.reduce((s, it) => s + (Number(it.qty)||0) * (Number(it.price)||0), 0) * 100) / 100;
+  // Price integrity: if the item name matches the vendor's catalogue, the vendor's
+  // current price wins over whatever the client sent. Free-text items pass through.
+  const priceByName = {};
+  db.prepare("SELECT name, price FROM items WHERE vendor_id=?").all(vendorId).forEach(r => { priceByName[r.name] = r.price; });
+  items = items.map(it => {
+    const name = clean(it.name, 120) || "Item";
+    const qty = Math.max(0.01, Math.min(9999, Number(it.qty) || 0));
+    const price = priceByName[name] != null ? priceByName[name] : Math.max(0, Number(it.price) || 0);
+    return { name, qty, price };
+  });
+  const total = Math.round(items.reduce((s, it) => s + it.qty * it.price, 0) * 100) / 100;
   const id = uid("o");
   const date = today(), nowIso = new Date().toISOString();
   const insertOrder = db.prepare(`INSERT INTO orders (id,vendor_id,restaurant_id,status,total,date,created_at) VALUES (?,?,?,?,?,?,?)`);
@@ -332,7 +367,12 @@ app.patch("/api/orders/:id/status", auth, (req, res) => {
   const o = db.prepare("SELECT * FROM orders WHERE id=?").get(req.params.id);
   if (!o) return res.status(404).json({ error: "Order not found" });
   // Authorization: vendor can confirm/decline/deliver their own; restaurant can mark received (Delivered)
-  if (req.user.role === "vendor" && o.vendor_id !== req.user.id) return res.status(403).json({ error: "Not your order" });
+  if (req.user.role === "vendor") {
+    if (o.vendor_id !== req.user.id) return res.status(403).json({ error: "Not your order" });
+    // Legal transitions only: Pending→Confirmed/Declined, Confirmed→Delivered
+    const allowed = { Pending: ["Confirmed", "Declined"], Confirmed: ["Delivered"] };
+    if (!(allowed[o.status] || []).includes(status)) return res.status(400).json({ error: "Can't change a " + o.status + " order to " + status });
+  }
   if (req.user.role === "restaurant") {
     if (o.restaurant_id !== req.user.id) return res.status(403).json({ error: "Not your order" });
     if (status !== "Delivered") return res.status(403).json({ error: "Only vendors can change to that status" });
@@ -425,7 +465,7 @@ app.post("/api/items", auth, requireRole("vendor"), (req, res) => {
   const pr = Number(price);
   if (!name || !pr || pr <= 0) return res.status(400).json({ error: "name and price required" });
   const id = uid("i");
-  db.prepare("INSERT INTO items (id,vendor_id,name,emoji,price,in_stock) VALUES (?,?,?,?,?,1)").run(id, req.user.id, String(name), emoji||"📦", Math.round(pr*100)/100);
+  db.prepare("INSERT INTO items (id,vendor_id,name,emoji,price,in_stock) VALUES (?,?,?,?,?,1)").run(id, req.user.id, String(name).slice(0,120), clean(emoji,4)||"📦", Math.round(pr*100)/100);
   res.json({ itemId: id });
 });
 app.patch("/api/items/:id", auth, requireRole("vendor"), (req, res) => {
@@ -526,7 +566,7 @@ app.get("/join/:code", (_req, res) => res.sendFile(path.join(__dirname, "public"
 // Each line: product name, then price as the last comma/tab-separated field.
 app.post("/api/items/bulk", auth, requireRole("vendor"), (req, res) => {
   const text = String((req.body && req.body.text) || "");
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).slice(0, 500);
   const created = [], skipped = [];
   const ins = db.prepare("INSERT INTO items (id,vendor_id,name,emoji,price,in_stock) VALUES (?,?,?,?,?,1)");
   const tx = db.transaction(() => {
@@ -535,7 +575,7 @@ app.post("/api/items/bulk", auth, requireRole("vendor"), (req, res) => {
       if (parts.length < 2) { skipped.push(line); return; }
       const priceRaw = parts[parts.length - 1].replace(/[^0-9.]/g, "");
       const price = parseFloat(priceRaw);
-      const name = parts.slice(0, -1).join(", ");
+      const name = parts.slice(0, -1).join(", ").slice(0, 120);
       if (!name || !price || price <= 0) { skipped.push(line); return; }
       ins.run(uid("i"), req.user.id, name, "📦", Math.round(price * 100) / 100);
       created.push(name);
