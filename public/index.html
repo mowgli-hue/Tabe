@@ -320,6 +320,14 @@ function rById(id){ return state.restaurants.find(r=>r.id===id); }
 function oById(id){ return state.orders.find(o=>o.id===id); }
 function balanceWith(cpId){ return state.ledger[cpId]||0; }
 function statusPill(st){ const m={Pending:"amber",Confirmed:"blue",Delivered:"green",Declined:""}; return '<span class="pill '+m[st]+'">'+st+'</span>'; }
+// Onboarding checklist row: done state, number, title, subtitle, optional onclick action
+function obStep(done, n, title, sub, action){
+  return '<div class="actrow"'+(action?' style="cursor:pointer" onclick="'+action+'"':'')+'>'+
+    '<div class="ico '+(done?"green":"amber")+'">'+(done?icon("check",14):'<span style="font-family:\'Inter\';font-weight:800;font-size:13px">'+n+'</span>')+'</div>'+
+    '<div style="min-width:0;flex:1"><div class="at">'+title+'</div><div class="as">'+sub+'</div></div>'+
+    (action?'<div style="color:var(--brand)">'+icon("chevron",16)+'</div>':'')+
+    '</div>';
+}
 
 /* ========== RENDER ROOT ========== */
 function render(){
@@ -346,7 +354,7 @@ function authHTML(){
     h+='<label>Email</label><input id="lg_e" type="email" placeholder="you@restaurant.com" autocomplete="email" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%;margin-bottom:0">';
     h+='<label style="margin-top:10px">Password</label><input id="lg_p" type="password" autocomplete="current-password" placeholder="••••••••" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
     h+='<button class="btn primary" style="margin-top:18px" onclick="submitLogin()">Sign in</button>';
-    h+='<div class="demo"><b>Try the demo</b><br>Or jump in with a pre-seeded account — both passwords are <b>demo123</b>.<div class="btnrow"><button class="btn ghost sm" onclick="demoLogin(\'spice@demo.tabe\')">Sign in as Spice Route (restaurant)</button></div><div class="btnrow"><button class="btn ghost sm" onclick="demoLogin(\'guruji@demo.tabe\')">Sign in as Guruji Foods (vendor)</button></div></div>';
+    h+='<div style="text-align:center;margin-top:16px;font-size:13px;color:var(--muted);font-weight:500">New to Vlink? <span style="color:var(--brand);font-weight:700;cursor:pointer" onclick="setAuthMode(\'signup\')">Create your free account</span></div>';
   } else {
     h+='<label>I\'m a…</label><div class="roles"><div class="rc '+(authRole==="restaurant"?"sel":"")+'" onclick="setAuthRole(\'restaurant\')"><div>🍽️</div>Restaurant</div><div class="rc '+(authRole==="vendor"?"sel":"")+'" onclick="setAuthRole(\'vendor\')"><div>🏪</div>Vendor</div></div>';
     h+='<label>'+(authRole==="restaurant"?"Restaurant name":"Business name")+'</label><input id="sg_n" placeholder="'+(authRole==="restaurant"?"e.g. Spice Route Kitchen":"e.g. Guruji Foods")+'" style="padding:13px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;width:100%">';
@@ -367,7 +375,6 @@ function authHTML(){
 function setAuthMode(m){ authMode=m; render(); }
 function setAuthRole(r){ authRole=r; render(); }
 function submitLogin(){ const e=$("lg_e").value.trim(); const p=$("lg_p").value; if(!e||!p){ toast("Email and password required",true); return; } doLogin(e,p); }
-function demoLogin(email){ doLogin(email,"demo123"); }
 function submitSignup(){
   const role=authRole;
   const body={role:role, name:$("sg_n").value.trim(), email:$("sg_e").value.trim(), password:$("sg_p").value, area:$("sg_a").value.trim(), emoji:(role==="restaurant"?"🍽️":"🏪")};
@@ -422,6 +429,15 @@ function rHome(){
     '<div><div class="stl">Spent total</div><b>'+money(totalSpent)+'</b></div>'+
     '<div><div class="stl">Vendors</div><b>'+state.vendors.length+'</b></div>'+
     '<div><div class="stl">Offers</div><b>'+state.offers.length+'</b></div></div></div>';
+  // First-run onboarding: shown until the restaurant places its first order
+  if(!state.orders.length){
+    const hasVendors = state.vendors.length > 0;
+    h+='<div class="sectionlabel">Welcome to Vlink</div><div class="card" style="padding:6px 14px">';
+    h+=obStep(hasVendors, "1", hasVendors ? "Your vendors are here" : "Invite your vendor", hasVendors ? state.vendors.length+" vendor(s) ready to take orders" : "Send them your join link — they set up in minutes", hasVendors?null:"copyInviteLink()");
+    h+=obStep(false, "2", "Place your first order", hasVendors ? "Tap a vendor below and add items" : "Available once a vendor joins", null);
+    h+=obStep(false, "3", "Watch the ledger work", "Bills and payments track themselves from there", null);
+    h+='</div>';
+  }
   if(lows.length){
     h+='<div class="sectionlabel">'+icon("alert",13)+'Low in pantry<span class="ct">'+lows.length+'</span></div><div class="strip">';
     lows.forEach(p=>{ const v=p.vid?vById(p.vid):null;
@@ -624,6 +640,17 @@ function vHome(){
     '<div><div class="stl">Paid</div><b>'+money(vendorPaid())+'</b></div>'+
     '<div><div class="stl">Pending</div><b>'+pend.length+'</b></div>'+
     '<div><div class="stl">Products</div><b>'+myItems.length+'</b></div></div></div>';
+  // First-run onboarding: shown until the shop has products and its first order
+  const hasItems = myItems.length > 0;
+  const hasOffer = vendorMyOffers().length > 0;
+  const hasOrder = state.orders.length > 0;
+  if(!hasItems || !hasOrder){
+    h+='<div class="sectionlabel">Set up your shop</div><div class="card" style="padding:6px 14px">';
+    h+=obStep(hasItems, "1", "Add your catalogue", hasItems ? myItems.length+" products listed" : "Paste your price list — takes 2 minutes", hasItems?null:"openBulkImportModal()");
+    h+=obStep(hasOffer, "2", "Post your first offer", hasOffer ? "Live — customers can see it" : "Optional — a deal to welcome customers", hasOffer?null:"openOfferModal()");
+    h+=obStep(hasOrder, "3", "Invite your customers", hasOrder ? "You have orders coming in" : "Send them your personal join link", hasOrder?null:"copyInviteLink()");
+    h+='</div>';
+  }
   if(top){ h+='<div class="sectionlabel">'+icon("trending",13)+'Top customer</div><div class="card"><div class="row"><div class="avatar grad" style="--g1:#2b6a5d;--g2:#103a32">'+(top.r.emoji||"🍽️")+'</div><div><div class="nm">'+escapeHtml(top.r.name)+'</div><div class="meta">Most billed customer</div></div><div class="right"><div class="amt">'+money(top.v)+'</div><div class="lbl">total billed</div></div></div></div>'; }
   if(pend.length){ h+='<div class="sectionlabel">'+icon("inbox",13)+'New orders<span class="ct">'+pend.length+'</span></div>';
     pend.forEach(o=>{ const r=rById(o.r)||{name:"Unknown",emoji:"🍽️"};

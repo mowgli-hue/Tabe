@@ -548,8 +548,12 @@ app.post("/api/items/bulk", auth, requireRole("vendor"), (req, res) => {
 // --- Health ---
 app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
-// --- Seed demo data if empty ---
+// --- Demo seed (prototype data) ---
+// DISABLED by default for production. Set SEED_DEMO=true in env to load the
+// prototype dataset (Surrey demo vendors + restaurants) into an empty database.
+// Handy for local testing, demos, and App Store review accounts.
 function seedIfEmpty() {
+  if (process.env.SEED_DEMO !== "true") return;
   const count = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
   if (count > 0) return;
   console.log("Seeding demo data...");

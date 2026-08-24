@@ -34,14 +34,17 @@ npm start
 
 Open **http://localhost:3000** in your browser.
 
-On the first run, the database is created at `data/tabe.db` and seeded with demo accounts. Both demo passwords are **`demo123`**:
+On the first run, the database is created at `data/tabe.db` — **empty, production-ready**. Sign up real accounts (restaurant or vendor) and go.
 
-- Restaurant demo: `spice@demo.tabe`
-- Vendor demo: `guruji@demo.tabe`
+Want the prototype demo dataset (Surrey demo vendors, sample orders) for local testing or store-review accounts? Set the env var `SEED_DEMO=true` before first boot:
 
-Or sign up a fresh account — pick role (restaurant or vendor), enter your details, and you're in.
+```bash
+SEED_DEMO=true npm start
+```
 
-To reset the demo data, delete `data/tabe.db` and restart.
+Demo credentials (only when seeded): `spice@demo.tabe` / `guruji@demo.tabe`, password `demo123`.
+
+To reset any database, delete `data/tabe.db` and restart.
 
 ---
 
@@ -110,6 +113,9 @@ Buy one at [Namecheap](https://www.namecheap.com), [Porkbun](https://porkbun.com
 | `PORT`       | `3000`                            | Port the server listens on. Most hosts set this automatically.          |
 | `DATA_DIR`   | `./data`                          | Folder for the SQLite DB and JWT secret. Set to a mounted volume on a host. |
 | `JWT_SECRET` | auto-generated and saved to file  | Used to sign auth tokens. **Set this explicitly in production.**        |
+| `SEED_DEMO`  | unset (off)                       | Set to `true` to load the prototype demo dataset into an empty database. Leave unset in production. |
+| `PUBLIC_URL` | unset                             | Public site URL (e.g. `https://vlink.systems`) used in invite links.    |
+| `RESEND_API_KEY` | unset (emails off)            | Resend key to activate email notifications.                             |
 
 ---
 
