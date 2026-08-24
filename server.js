@@ -147,9 +147,30 @@ CREATE INDEX IF NOT EXISTS idx_pantry_restaurant ON pantry(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_conn_restaurant ON connections(restaurant_id);
 `);
 
+db.exec(`
+CREATE TABLE IF NOT EXISTS verifications (
+  user_id TEXT PRIMARY KEY,
+  legal_name TEXT,
+  business_number TEXT,
+  address TEXT,
+  id_doc TEXT,
+  incorp_doc TEXT,
+  note TEXT,
+  submitted_at TEXT,
+  reviewed_at TEXT,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+`);
+
 // Migrations for existing databases (safe to re-run)
 try { db.exec("ALTER TABLE payments ADD COLUMN status TEXT NOT NULL DEFAULT 'Confirmed'"); } catch {}
 try { db.exec("ALTER TABLE payments ADD COLUMN proof TEXT"); } catch {}
+try { db.exec("ALTER TABLE users ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'unverified'"); } catch {}
+
+// Platform admins (review verifications). Comma-separated emails.
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "mowgli@junglelabsworld.com")
+  .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+const isAdminUser = (u) => !!u && ADMIN_EMAILS.includes(String(u.email).toLowerCase());
 
 // ===== Email notifications (Resend) =====
 // Set RESEND_API_KEY (and optionally EMAIL_FROM) in env to activate. No-ops silently otherwise.
@@ -192,6 +213,7 @@ const sanitizeUser = (u, includeEmail = false) => {
   if (includeEmail) rest.email = email;
   rest.minOrder = rest.min_order; delete rest.min_order;
   rest.deliveryDays = rest.delivery_days; delete rest.delivery_days;
+  rest.verified = rest.verification_status === "verified";
   return rest;
 };
 // Trim + cap user-supplied text fields
@@ -300,7 +322,9 @@ app.post("/api/login", authRateLimit, (req, res) => {
 });
 
 app.get("/api/me", auth, (req, res) => {
-  res.json({ user: sanitizeUser(req.user, true) });
+  const u = sanitizeUser(req.user, true);
+  u.isAdmin = isAdminUser(req.user);
+  res.json({ user: u });
 });
 
 app.patch("/api/profile", auth, (req, res) => {
@@ -371,6 +395,8 @@ app.post("/api/orders", auth, requireRole("restaurant"), (req, res) => {
   const v = db.prepare("SELECT * FROM users WHERE id=? AND role='vendor'").get(vendorId);
   if (!v) return res.status(404).json({ error: "Vendor not found" });
   if (!isConnected(vendorId, req.user.id)) return res.status(403).json({ error: "Connect with this vendor first (use their invite link)" });
+  if (req.user.verification_status !== "verified") return res.status(403).json({ error: "Complete your business verification to place orders" });
+  if (v.verification_status !== "verified") return res.status(403).json({ error: "This vendor hasn't completed verification yet" });
   // Price integrity: if the item name matches the vendor's catalogue, the vendor's
   // current price wins over whatever the client sent. Free-text items pass through.
   const priceByName = {};
@@ -690,6 +716,66 @@ app.post("/api/connect", auth, (req, res) => {
   if (inv.role === req.user.role) return res.status(400).json({ error: "You can only connect with a " + (req.user.role === "vendor" ? "restaurant" : "vendor") });
   if (req.user.role === "restaurant") connectPair(inv.id, req.user.id); else connectPair(req.user.id, inv.id);
   res.json({ connected: sanitizeUser(inv) });
+});
+
+// --- Business verification (DoorDash-style merchant onboarding) ---
+const okDoc = (d) => d == null || (typeof d === "string" && (d.startsWith("data:image/") || d.startsWith("data:application/pdf")) && d.length <= 2_500_000);
+app.get("/api/verification", auth, (req, res) => {
+  const v = db.prepare("SELECT legal_name, business_number, address, note, submitted_at, reviewed_at, id_doc IS NOT NULL AS has_id, incorp_doc IS NOT NULL AS has_incorp FROM verifications WHERE user_id=?").get(req.user.id);
+  res.json({ status: req.user.verification_status, verification: v || null });
+});
+app.post("/api/verification", auth, (req, res) => {
+  if (req.user.verification_status === "verified") return res.status(400).json({ error: "You're already verified" });
+  const b = req.body || {};
+  const legalName = clean(b.legalName, 120), businessNumber = clean(b.businessNumber, 40), address = clean(b.address, 200);
+  if (!legalName || !address) return res.status(400).json({ error: "Legal business name and address are required" });
+  if (!okDoc(b.idDoc) || !okDoc(b.incorpDoc)) return res.status(400).json({ error: "Documents must be images or PDFs under 2 MB" });
+  if (!b.idDoc) return res.status(400).json({ error: "A photo of government ID is required" });
+  db.prepare(`INSERT INTO verifications (user_id, legal_name, business_number, address, id_doc, incorp_doc, submitted_at)
+    VALUES (?,?,?,?,?,?,?)
+    ON CONFLICT(user_id) DO UPDATE SET legal_name=excluded.legal_name, business_number=excluded.business_number,
+      address=excluded.address, id_doc=excluded.id_doc, incorp_doc=excluded.incorp_doc, submitted_at=excluded.submitted_at, note=NULL, reviewed_at=NULL`)
+    .run(req.user.id, legalName, businessNumber, address, b.idDoc || null, b.incorpDoc || null, new Date().toISOString());
+  db.prepare("UPDATE users SET verification_status='pending' WHERE id=?").run(req.user.id);
+  if (ADMIN_EMAILS.length) sendEmail(ADMIN_EMAILS[0], `Verification submitted: ${req.user.name}`,
+    emailWrap("New verification to review", `<p><b>${req.user.name}</b> (${req.user.role}) submitted business verification. Review it in the Vlink admin panel.</p>`));
+  res.json({ ok: true, status: "pending" });
+});
+
+// --- Admin: review verifications ---
+function requireAdmin(req, res, next) {
+  if (!isAdminUser(req.user)) return res.status(403).json({ error: "Admin only" });
+  next();
+}
+app.get("/api/admin/verifications", auth, requireAdmin, (_req, res) => {
+  const rows = db.prepare(`SELECT v.user_id, v.legal_name, v.business_number, v.address, v.submitted_at,
+      u.name, u.role, u.email, u.area, u.verification_status
+    FROM verifications v JOIN users u ON u.id = v.user_id
+    WHERE u.verification_status = 'pending' ORDER BY v.submitted_at ASC`).all();
+  res.json({ pending: rows });
+});
+app.get("/api/admin/verifications/:userId", auth, requireAdmin, (req, res) => {
+  const v = db.prepare("SELECT * FROM verifications WHERE user_id=?").get(req.params.userId);
+  if (!v) return res.status(404).json({ error: "Not found" });
+  res.json({ verification: v });
+});
+app.patch("/api/admin/verifications/:userId", auth, requireAdmin, (req, res) => {
+  const action = (req.body && req.body.action) || "";
+  const note = clean(req.body && req.body.note, 300);
+  if (!["approve", "reject"].includes(action)) return res.status(400).json({ error: "action must be approve or reject" });
+  const target = db.prepare("SELECT * FROM users WHERE id=?").get(req.params.userId);
+  if (!target) return res.status(404).json({ error: "User not found" });
+  const newStatus = action === "approve" ? "verified" : "rejected";
+  db.prepare("UPDATE users SET verification_status=? WHERE id=?").run(newStatus, target.id);
+  db.prepare("UPDATE verifications SET reviewed_at=?, note=? WHERE user_id=?").run(new Date().toISOString(), note, target.id);
+  if (newStatus === "verified") {
+    sendEmail(target.email, "You're verified on Vlink ✓",
+      emailWrap("Verification approved", `<p>Welcome aboard, <b>${target.name}</b> — your business is verified and you have full access to Vlink.</p>`));
+  } else {
+    sendEmail(target.email, "Vlink verification — action needed",
+      emailWrap("Verification not approved", `<p>We couldn't verify your business${note ? ": " + note : ""}. Please re-submit with corrected details.</p>`));
+  }
+  res.json({ ok: true, status: newStatus });
 });
 
 // --- Health ---

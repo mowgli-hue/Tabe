@@ -383,6 +383,10 @@ function render(){
   if(route.view==="auth"){ document.body.classList.add("authfull"); document.body.classList.remove("appfull"); app.innerHTML=authHTML(); return; }
   document.body.classList.remove("authfull");
   document.body.classList.add("appfull");
+  if(route.view==="admin" && me && me.isAdmin){
+    app.innerHTML = appbar(me.role, "Admin", "Verification reviews") + '<div class="screen" id="screen">'+adminBody()+'</div>' + (me.role==="restaurant"?restNav():venNav());
+    return;
+  }
   if(!me){ route={view:"auth"}; return render(); }
   let body="",bar="",nav="",float="";
   if(me.role==="restaurant"){ const out=renderRestaurant(); body=out.body;bar=out.bar;nav=out.nav;float=out.float; }
@@ -453,6 +457,7 @@ function restNav(){
   let h='<div class="nav r"><div class="navlogo">V<span>link</span></div><span class="navrole" style="display:none"></span>';
   tabs.forEach(t=>{ const on=(route.view===t[0]||(t[0]==="r_home"&&(route.view==="r_vendor"||route.view==="r_insights"))||(t[0]==="r_orders"&&route.view==="r_cart"));
     h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+'</div>'; });
+  if(me&&me.isAdmin) h+='<div class="n'+(route.view==="admin"?" on":"")+'" onclick="go(\'admin\')">'+icon("settings",21)+'Admin</div>';
   return h+'</div>';
 }
 function renderRestaurant(){
@@ -484,6 +489,7 @@ function rHome(){
     '<div><div class="stl">Spent total</div><b>'+money(totalSpent)+'</b></div>'+
     '<div><div class="stl">Vendors</div><b>'+state.vendors.length+'</b></div>'+
     '<div><div class="stl">Offers</div><b>'+state.offers.length+'</b></div></div></div>';
+  h+=verifyBanner();
   // First-run onboarding: shown until the restaurant places its first order
   if(!state.orders.length){
     const hasVendors = state.vendors.length > 0;
@@ -658,6 +664,7 @@ function venNav(){
   let h='<div class="nav v"><div class="navlogo">V<span>link</span></div>'; const pend=state.orders.filter(o=>o.status==="Pending").length;
   tabs.forEach(t=>{ const on=route.view===t[0]||(t[0]==="v_customers"&&route.view==="v_customer");
     h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+(t[0]==="v_orders"&&pend?'<span class="badge">'+pend+'</span>':"")+'</div>'; });
+  if(me&&me.isAdmin) h+='<div class="n'+(route.view==="admin"?" on":"")+'" onclick="go(\'admin\')">'+icon("settings",21)+'Admin</div>';
   return h+'</div>';
 }
 function renderVendor(){
@@ -695,6 +702,7 @@ function vHome(){
     '<div><div class="stl">Paid</div><b>'+money(vendorPaid())+'</b></div>'+
     '<div><div class="stl">Pending</div><b>'+pend.length+'</b></div>'+
     '<div><div class="stl">Products</div><b>'+myItems.length+'</b></div></div></div>';
+  h+=verifyBanner();
   // Payment claims awaiting review
   const claims = state.payments.filter(p=>p.status==="Pending");
   if(claims.length){
@@ -996,6 +1004,101 @@ async function copyInviteLink(){
     else { prompt("Copy your invite link:", url); }
   }catch(e){ toast(e.message, true); }
 }
+/* ===== Business verification ===== */
+function verifyBanner(){
+  const st = me.verification_status || "unverified";
+  if(st === "verified") return "";
+  if(st === "pending"){
+    return '<div class="card" style="background:var(--amber-l);border-color:#f0dcc1;cursor:default"><div class="row"><div style="color:var(--amber)">'+icon("clock",20)+'</div>'+
+      '<div style="flex:1"><div class="nm">Verification under review</div><div class="meta">Our team is checking your documents — you\'ll get an email when you\'re approved.</div></div></div></div>';
+  }
+  const rejected = st === "rejected";
+  return '<div class="card tap" style="background:'+(rejected?'var(--red-l)':'var(--brand-l)')+';border-color:'+(rejected?'#f0b39a':'#cee0d9')+'" onclick="openVerifyModal()"><div class="row">'+
+    '<div style="color:'+(rejected?'var(--red)':'var(--brand)')+'">'+icon("alert",20)+'</div>'+
+    '<div style="flex:1"><div class="nm">'+(rejected?"Verification needs another look":"Verify your business")+'</div>'+
+    '<div class="meta">'+(rejected?"We couldn\'t approve your last submission — tap to re-submit.":"Confirm your identity and business details to unlock ordering.")+'</div></div>'+
+    '<div style="color:var(--brand)">'+icon("chevron",18)+'</div></div></div>';
+}
+function readDoc(file){
+  return new Promise((resolve,reject)=>{
+    if(file.type === "application/pdf"){
+      if(file.size > 1_800_000){ reject(new Error("PDF too large — keep it under 1.8 MB")); return; }
+      const fr=new FileReader(); fr.onload=()=>resolve(fr.result); fr.onerror=()=>reject(new Error("Couldn't read the PDF")); fr.readAsDataURL(file);
+    } else {
+      fileToProof(file).then(resolve).catch(reject);
+    }
+  });
+}
+let _idDoc=null,_incorpDoc=null;
+async function onDocPick(input, which){
+  const f=input.files&&input.files[0]; if(!f) return;
+  try{
+    const d=await readDoc(f);
+    if(which==="id") _idDoc=d; else _incorpDoc=d;
+    const el=$(which==="id"?"idDocStatus":"incorpDocStatus"); if(el) el.textContent="✓ attached";
+  }catch(e){ toast(e.message,true); }
+}
+function openVerifyModal(){
+  _idDoc=null; _incorpDoc=null;
+  const isVendor = me.role==="vendor";
+  openModal('<h3>Verify your business</h3><p>Like any serious marketplace, Vlink verifies every business before it can transact. Your documents are only visible to the Vlink team.</p>'+
+    '<label>Legal business name</label><input id="f_vlegal" placeholder="e.g. Aggarwal Vendors Store Ltd.">'+
+    '<label>Business / GST number (optional)</label><input id="f_vbn" placeholder="e.g. 123456789 RT0001">'+
+    '<label>Business address</label><input id="f_vaddr" placeholder="Street, city, province">'+
+    '<label>Government ID of owner (photo)</label><input type="file" accept="image/*" onchange="onDocPick(this,\'id\')" style="padding:10px"> <span id="idDocStatus" class="meta"></span>'+
+    '<label>'+(isVendor?"Incorporation / business registration document (photo or PDF)":"Business registration document (optional — photo or PDF)")+'</label>'+
+    '<input type="file" accept="image/*,application/pdf" onchange="onDocPick(this,\'incorp\')" style="padding:10px"> <span id="incorpDocStatus" class="meta"></span>'+
+    '<button class="btn primary" onclick="submitVerification()">Submit for review</button>'+
+    '<button class="btn ghost" onclick="closeModal()">Later</button>');
+}
+async function submitVerification(){
+  const legalName=$("f_vlegal").value.trim(), businessNumber=$("f_vbn").value.trim(), address=$("f_vaddr").value.trim();
+  if(!legalName||!address){ toast("Legal name and address are required",true); return; }
+  if(!_idDoc){ toast("Please attach a photo of government ID",true); return; }
+  try{
+    await api("POST","/api/verification",{legalName,businessNumber,address,idDoc:_idDoc,incorpDoc:_incorpDoc});
+    me.verification_status="pending"; closeModal(); toast("Submitted — we'll review it shortly"); render();
+  }catch(e){ toast(e.message,true); }
+}
+/* ===== Admin panel ===== */
+let adminPending=null;
+async function loadAdmin(){ try{ const r=await api("GET","/api/admin/verifications"); adminPending=r.pending; }catch(e){ adminPending=[]; toast(e.message,true); } render(); }
+function adminBody(){
+  if(adminPending===null){ loadAdmin(); return '<div class="empty"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:14px">Loading reviews…</div></div>'; }
+  let h='<div class="hd">Verification reviews</div><div class="sub2">Approve businesses onto the platform</div>';
+  if(!adminPending.length) return h+emptyState("All caught up","No verifications waiting for review.");
+  adminPending.forEach(v=>{
+    h+='<div class="card"><div class="row"><div class="avatar grad" style="--g1:#3e6ca0;--g2:#264c75">'+(v.role==="vendor"?"🏪":"🍽️")+'</div>'+
+      '<div style="min-width:0;flex:1"><div class="nm">'+escapeHtml(v.name)+' <span class="pill">'+v.role+'</span></div>'+
+      '<div class="meta">'+escapeHtml(v.legal_name||"")+(v.business_number?' · '+escapeHtml(v.business_number):'')+'</div>'+
+      '<div class="meta">'+escapeHtml(v.address||"")+' · '+escapeHtml(v.email||"")+'</div></div></div>'+
+      '<div class="btnrow"><button class="btn ghost sm" style="flex:1" onclick="viewVerifDocs(\''+v.user_id+'\')">View documents</button>'+
+      '<button class="btn primary sm" style="flex:1" onclick="reviewVerif(\''+v.user_id+'\',\'approve\')">'+icon("check",14)+'Approve</button>'+
+      '<button class="btn danger sm" style="flex:1" onclick="openRejectModal(\''+v.user_id+'\')">Reject</button></div></div>';
+  });
+  return h;
+}
+async function viewVerifDocs(uid2){
+  try{
+    const r=await api("GET","/api/admin/verifications/"+uid2);
+    const v=r.verification;
+    const doc=(d,label)=>{ if(!d) return '<p class="meta">'+label+': not provided</p>';
+      if(d.startsWith("data:application/pdf")) return '<p><a class="btn ghost sm" style="display:inline-flex" href="'+d+'" download="'+label+'.pdf">Download '+label+' (PDF)</a></p>';
+      return '<p class="meta" style="margin-top:8px">'+label+':</p><img src="'+d+'" style="max-width:100%;border-radius:10px;border:1px solid var(--line)">'; };
+    openModal('<h3>'+escapeHtml(v.legal_name||"Documents")+'</h3><p>'+escapeHtml(v.address||"")+'</p>'+doc(v.id_doc,"Government ID")+doc(v.incorp_doc,"Registration document")+
+      '<button class="btn ghost" onclick="closeModal()">Close</button>');
+  }catch(e){ toast(e.message,true); }
+}
+async function reviewVerif(uid2, action, note){
+  try{ await api("PATCH","/api/admin/verifications/"+uid2,{action,note}); adminPending=null; closeModal(); toast(action==="approve"?"Approved ✓":"Rejected"); render(); }
+  catch(e){ toast(e.message,true); }
+}
+function openRejectModal(uid2){
+  openModal('<h3>Reject verification</h3><p>Tell them what to fix — this goes in their email.</p>'+
+    '<label>Reason</label><textarea id="f_rejnote" placeholder="e.g. ID photo is unreadable"></textarea>'+
+    '<button class="btn danger" onclick="reviewVerif(\''+uid2+'\',\'reject\',$(\'f_rejnote\').value.trim())">Reject with note</button>'+
+    '<button class="btn ghost" onclick="closeModal()">Cancel</button>');
+}
 function openConnectModal(){
   openModal('<h3>Add a vendor</h3><p>Paste the invite link or code your vendor shared with you. Don\'t have one? Copy your own link below and send it to them.</p>'+
     '<label>Vendor\'s invite link or code</label><input id="f_code" placeholder="vlink.systems/join/their-code  or  their-code">'+
@@ -1043,9 +1146,36 @@ async function reviewClaim(pid, action){
   try{ await api("PATCH","/api/payments/"+pid,{action}); await refreshAll(); toast(action==="confirm"?"Payment confirmed ✓":"Payment declined"); render(); }
   catch(e){ toast(e.message,true); }
 }
+function onCsvPick(input){
+  const f=input.files&&input.files[0]; if(!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    const text=String(fr.result||"");
+    const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    const out=[];
+    lines.forEach(line=>{
+      // detect delimiter: comma, semicolon, or tab
+      const delim = line.includes("\t") ? "\t" : line.includes(";") ? ";" : ",";
+      const cells=line.split(delim).map(c=>c.trim().replace(/^"|"$/g,"")).filter(Boolean);
+      if(cells.length<2) return;
+      // price = last cell that parses as a number
+      let priceIdx=-1;
+      for(let i=cells.length-1;i>=0;i--){ if(!isNaN(parseFloat(cells[i].replace(/[^0-9.\-]/g,""))) && /[0-9]/.test(cells[i])){ priceIdx=i; break; } }
+      if(priceIdx<1) return;
+      const price=parseFloat(cells[priceIdx].replace(/[^0-9.]/g,""));
+      const name=cells.slice(0,priceIdx).join(" ").slice(0,120);
+      if(name && price>0) out.push(name+", "+price);
+    });
+    if(!out.length){ toast("Couldn't find name+price rows in that file",true); return; }
+    $("f_bulk").value=out.join("\n");
+    toast(out.length+" products found — review below, then Import");
+  };
+  fr.readAsText(f);
+}
 function openBulkImportModal(){
-  openModal('<h3>Import your catalogue</h3><p>Paste your price list — one product per line, price at the end. Example:<br><i>Basmati Rice 20kg, 46<br>Toor Dal 10kg, 31.50</i></p>'+
-    '<label>Paste price list</label><textarea id="f_bulk" style="min-height:140px" placeholder="Product name, price"></textarea>'+
+  openModal('<h3>Import your catalogue</h3><p>Two ways: upload a CSV exported from Excel, or paste your price list (from WhatsApp, a PDF, anywhere) — one product per line, price at the end.</p>'+
+    '<label>Upload CSV file</label><input type="file" accept=".csv,.txt,text/csv" onchange="onCsvPick(this)" style="padding:10px">'+
+    '<label>Or paste price list</label><textarea id="f_bulk" style="min-height:140px" placeholder="Basmati Rice 20kg, 46&#10;Toor Dal 10kg, 31.50"></textarea>'+
     '<button class="btn primary" onclick="submitBulkImport()">Import products</button>'+
     '<button class="btn ghost" onclick="closeModal()">Cancel</button>');
 }
