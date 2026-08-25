@@ -276,6 +276,8 @@ app.use(express.json({ limit: "1mb" }));
 // Marketing landing page at the root; the app lives at /app
 app.get("/", (_req, res) => res.sendFile(path.join(__dirname, "public", "landing.html")));
 app.get("/app", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/privacy", (_req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
+app.get("/terms", (_req, res) => res.sendFile(path.join(__dirname, "public", "terms.html")));
 
 // Static frontend
 app.use(express.static(path.join(__dirname, "public")));
