@@ -534,7 +534,7 @@ function rHome(){
   h+='<div class="card tap" onclick="go(\'r_pantry\')"><div class="qico">'+icon("list",17)+'</div><div class="nm">Pantry</div><div class="meta">'+state.pantry.length+' tracked'+(lows.length?' · '+lows.length+' low':"")+'</div></div>';
   h+='<div class="card tap" onclick="go(\'r_insights\')"><div class="qico">'+icon("bar",17)+'</div><div class="nm">Spend insights</div><div class="meta">By vendor</div></div>';
   h+='<div class="card tap" onclick="openConnectModal()"><div class="qico" style="background:var(--accent-l);color:var(--accent-d)">'+icon("plus",17)+'</div><div class="nm">Add a vendor</div><div class="meta">Connect with a code or invite</div></div>';
-  h+='</div><div style="height:14px"></div>';
+  h+='</div><div style="text-align:center;margin-top:18px"><span style="font-size:12px;color:var(--muted);font-weight:600;cursor:pointer" onclick="openDeleteAccountModal()">Delete my account</span></div><div style="height:14px"></div>';
   return h;
 }
 function rVendor(){
@@ -910,7 +910,8 @@ function openProfileModal(){ const u=me;
     '<label>Delivery days</label><input id="f_bd" value="'+escapeAttr(u.deliveryDays||"")+'">'+
     '<label>Phone</label><input id="f_bp" value="'+escapeAttr(u.phone||"")+'">'+
     '<label>Minimum order (CAD)</label><input id="f_bm" type="number" value="'+(u.minOrder||0)+'">'+
-    '<button class="btn primary" onclick="submitProfile()">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'); }
+    '<button class="btn primary" onclick="submitProfile()">Save</button><button class="btn ghost" onclick="closeModal()">Cancel</button>'+
+    '<div style="text-align:center;margin-top:14px"><span style="font-size:12px;color:var(--red);font-weight:600;cursor:pointer" onclick="closeModal();openDeleteAccountModal()">Delete my account</span></div>'); }
 async function submitProfile(){
   const body={name:$("f_bn").value.trim(),category:$("f_bc").value.trim(),cutoff:$("f_bk").value.trim(),deliveryDays:$("f_bd").value.trim(),phone:$("f_bp").value.trim(),minOrder:Math.max(0,parseFloat($("f_bm").value)||0)};
   try{ const r=await api("PATCH","/api/profile",body); me=r.user; delete state.vendorDetails[me.id]; await refreshAll(); await ensureMyCatalog(); closeModal(); toast("Business info saved ✓"); render(); }catch(e){ toast(e.message,true); }
@@ -1098,6 +1099,17 @@ function openRejectModal(uid2){
     '<label>Reason</label><textarea id="f_rejnote" placeholder="e.g. ID photo is unreadable"></textarea>'+
     '<button class="btn danger" onclick="reviewVerif(\''+uid2+'\',\'reject\',$(\'f_rejnote\').value.trim())">Reject with note</button>'+
     '<button class="btn ghost" onclick="closeModal()">Cancel</button>');
+}
+function openDeleteAccountModal(){
+  openModal('<h3>Delete your account</h3><p>This permanently removes your business, catalogue, orders, ledger, and documents from Vlink. This cannot be undone.</p>'+
+    '<label>Enter your password to confirm</label><input id="f_delpw" type="password" placeholder="••••••••">'+
+    '<button class="btn danger" onclick="submitDeleteAccount()">Permanently delete my account</button>'+
+    '<button class="btn ghost" onclick="closeModal()">Cancel</button>');
+}
+async function submitDeleteAccount(){
+  const pw=$("f_delpw").value; if(!pw){ toast("Enter your password",true); return; }
+  try{ await api("DELETE","/api/account",{password:pw}); closeModal(); toast("Account deleted"); logout(); }
+  catch(e){ toast(e.message,true); }
 }
 function openConnectModal(){
   openModal('<h3>Add a vendor</h3><p>Paste the invite link or code your vendor shared with you. Don\'t have one? Copy your own link below and send it to them.</p>'+

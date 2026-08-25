@@ -780,6 +780,16 @@ app.patch("/api/admin/verifications/:userId", auth, requireAdmin, (req, res) => 
   res.json({ ok: true, status: newStatus });
 });
 
+// --- Account deletion (required by app stores; cascades all user data) ---
+app.delete("/api/account", auth, (req, res) => {
+  const { password } = req.body || {};
+  if (!password || !bcrypt.compareSync(password, req.user.password_hash)) {
+    return res.status(401).json({ error: "Enter your correct password to confirm deletion" });
+  }
+  db.prepare("DELETE FROM users WHERE id=?").run(req.user.id); // FK CASCADE removes items, orders, payments, pantry, connections, verification
+  res.json({ ok: true });
+});
+
 // --- Health ---
 app.get("/api/health", (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
