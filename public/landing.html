@@ -31,10 +31,11 @@ img{max-width:100%}
 .nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
   padding:16px 24px;transition:background .3s,box-shadow .3s}
 .nav.scrolled{background:rgba(246,245,240,.92);backdrop-filter:blur(12px);box-shadow:0 1px 0 rgba(15,26,23,.06)}
-.nav .logo{font-family:'DM Serif Display',serif;font-size:28px;color:#fff;transition:color .3s}
-.nav.scrolled .logo{color:var(--brand-d)}
-.nav .logo span{color:var(--accent-l)}
-.nav.scrolled .logo span{color:var(--accent)}
+.nav .logo{display:flex;align-items:center}
+.nav .logoimg{height:34px;width:auto;display:block}
+.nav .logoimg-dark{display:none}
+.nav.scrolled .logoimg-light{display:none}
+.nav.scrolled .logoimg-dark{display:block}
 .nav .links{display:flex;gap:10px;align-items:center}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;border-radius:30px;font-weight:600;font-size:14.5px;
   cursor:pointer;border:none;font-family:inherit;transition:transform .15s,box-shadow .15s,background .2s}
@@ -211,7 +212,7 @@ img{max-width:100%}
 <body>
 
 <nav class="nav" id="nav">
-  <a class="logo" href="/">V<span>link</span></a>
+  <a class="logo" href="/"><img class="logoimg logoimg-light" src="/logo-white.png" alt="Vlink"><img class="logoimg logoimg-dark" src="/logo.png" alt="Vlink"></a>
   <div class="links">
     <a class="btn btn-ghost" href="/app">Sign in</a>
     <a class="btn btn-accent" href="/app">Get started</a>
@@ -391,7 +392,7 @@ img{max-width:100%}
 </section>
 
 <footer class="footer">
-  <div class="logo">V<span>link</span></div>
+  <div class="logo"><img src="/logo-white.png" alt="Vlink" style="height:30px;width:auto;display:block"></div>
   <div>Made in Surrey, BC 🇨🇦 · © 2026 Vlink · a Jungle Labs company · <a href="/privacy" style="color:rgba(255,255,255,.75)">Privacy</a> · <a href="/terms" style="color:rgba(255,255,255,.75)">Terms</a> · <a href="mailto:admin@vlink.systems" style="color:rgba(255,255,255,.75)">admin@vlink.systems</a></div>
 </footer>
 

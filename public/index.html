@@ -396,7 +396,7 @@ function render(){
 
 /* ========== AUTH SCREENS ========== */
 function authHTML(){
-  let h='<div class="auth"><div class="hero"><div class="lg">V<span>link</span></div><div class="tag">The supply link between restaurants & their vendors</div>'+
+  let h='<div class="auth"><div class="hero"><img src="/logo-white.png" alt="Vlink" style="height:64px;width:auto"><div class="tag">The supply link between restaurants & their vendors</div>'+
     '<div class="feats">'+
     '<div class="feat"><span class="fdot">🛒</span>Order from all your vendors in one place</div>'+
     '<div class="feat"><span class="fdot">📒</span>The running balance writes itself</div>'+
@@ -454,7 +454,7 @@ function go(view,opts){ route={view:view,vendorId:(opts&&opts.vendorId)||null,re
 /* ========== RESTAURANT ========== */
 function restNav(){
   const tabs=[["r_home","home","Home"],["r_orders","package","Orders"],["r_pantry","list","Pantry"],["r_ledger","book","Ledger"],["r_offers","tag","Offers"]];
-  let h='<div class="nav r"><div class="navlogo">V<span>link</span></div><span class="navrole" style="display:none"></span>';
+  let h='<div class="nav r"><div class="navlogo"><img src="/logo.png" alt="Vlink" style="height:26px;width:auto;display:block"></div><span class="navrole" style="display:none"></span>';
   tabs.forEach(t=>{ const on=(route.view===t[0]||(t[0]==="r_home"&&(route.view==="r_vendor"||route.view==="r_insights"))||(t[0]==="r_orders"&&route.view==="r_cart"));
     h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+'</div>'; });
   if(me&&me.isAdmin) h+='<div class="n'+(route.view==="admin"?" on":"")+'" onclick="go(\'admin\')">'+icon("settings",21)+'Admin</div>';
@@ -661,7 +661,7 @@ function rInsights(){
 /* ========== VENDOR ========== */
 function venNav(){
   const tabs=[["v_home","home","Home"],["v_orders","package","Orders"],["v_catalogue","list","Catalogue"],["v_customers","users","Customers"],["v_offers","tag","Offers"]];
-  let h='<div class="nav v"><div class="navlogo">V<span>link</span></div>'; const pend=state.orders.filter(o=>o.status==="Pending").length;
+  let h='<div class="nav v"><div class="navlogo"><img src="/logo.png" alt="Vlink" style="height:26px;width:auto;display:block"></div>'; const pend=state.orders.filter(o=>o.status==="Pending").length;
   tabs.forEach(t=>{ const on=route.view===t[0]||(t[0]==="v_customers"&&route.view==="v_customer");
     h+='<div class="n'+(on?" on":"")+'" onclick="go(\''+t[0]+'\')">'+icon(t[1],21)+t[2]+(t[0]==="v_orders"&&pend?'<span class="badge">'+pend+'</span>':"")+'</div>'; });
   if(me&&me.isAdmin) h+='<div class="n'+(route.view==="admin"?" on":"")+'" onclick="go(\'admin\')">'+icon("settings",21)+'Admin</div>';
