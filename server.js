@@ -177,15 +177,22 @@ const isAdminUser = (u) => !!u && ADMIN_EMAILS.includes(String(u.email).toLowerC
 const RESEND_API_KEY = process.env.RESEND_API_KEY || null;
 const EMAIL_FROM = process.env.EMAIL_FROM || "Vlink <onboarding@resend.dev>";
 async function sendEmail(to, subject, html) {
-  if (!RESEND_API_KEY || !to || to.endsWith("@demo.tabe")) return; // skip demo accounts
+  if (!RESEND_API_KEY || !to || to.endsWith("@demo.tabe")) return false; // skip demo accounts / not configured
   try {
-    await fetch("https://api.resend.com/emails", {
+    const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Authorization": "Bearer " + RESEND_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
     });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      console.warn("email send failed:", resp.status, body.slice(0, 300));
+      return false;
+    }
+    return true;
   } catch (e) {
     console.warn("email send failed:", e.message);
+    return false;
   }
 }
 function emailWrap(title, body) {
@@ -778,6 +785,14 @@ app.patch("/api/admin/verifications/:userId", auth, requireAdmin, (req, res) => 
       emailWrap("Verification not approved", `<p>We couldn't verify your business${note ? ": " + note : ""}. Please re-submit with corrected details.</p>`));
   }
   res.json({ ok: true, status: newStatus });
+});
+
+// --- Admin: send a test email to verify Resend configuration ---
+app.post("/api/admin/test-email", auth, requireAdmin, async (req, res) => {
+  if (!RESEND_API_KEY) return res.json({ sent: false, to: req.user.email });
+  const ok = await sendEmail(req.user.email, "Vlink test email ✓",
+    emailWrap("Email is working", `<p>This is a test from your Vlink server. Sender: <b>${EMAIL_FROM}</b>.</p><p>If you can read this, order notifications, payment claims, and verification emails are all live.</p>`));
+  res.json({ sent: !!ok, to: req.user.email, from: EMAIL_FROM });
 });
 
 // --- Account deletion (required by app stores; cascades all user data) ---

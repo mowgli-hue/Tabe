@@ -690,7 +690,7 @@ function topCustomer(){
   const e=Object.entries(map); if(!e.length) return null; e.sort((a,b)=>b[1]-a[1]); return {r:rById(e[0][0]),v:e[0][1]};
 }
 function vHome(){
-  ensureMyCatalog().then(()=>{ if(route.view==="v_home") render(); });
+  if(!state.vendorDetails[me.id]) ensureMyCatalog().then(()=>{ if(route.view==="v_home") render(); });
   const pend=state.orders.filter(o=>o.status==="Pending");
   const todays=state.orders.filter(o=>o.status==="Confirmed");
   const top=topCustomer();
@@ -786,7 +786,7 @@ function setOrderFilter(f){ orderFilter=f; render(); }
 function refilter(){ render(); setTimeout(()=>{ const s=document.querySelector(".search"); if(s){ s.focus(); s.setSelectionRange(s.value.length,s.value.length); } },0); }
 async function setOrder(id,status){ try{ await api("PATCH","/api/orders/"+id+"/status",{status:status}); await refreshAll(); toast("Order "+status.toLowerCase()); closeModal(); render(); }catch(e){ toast(e.message,true); } }
 function vCatalogue(){
-  ensureMyCatalog().then(()=>{ if(route.view==="v_catalogue") render(); });
+  if(!state.vendorDetails[me.id]) ensureMyCatalog().then(()=>{ if(route.view==="v_catalogue") render(); });
   const items=vendorMyItems();
   const inStock=items.filter(i=>i.stock!==false).length;
   let h='<div class="hd">Catalogue</div><div class="sub2">'+items.length+' products · '+inStock+' in stock</div>';
@@ -805,7 +805,7 @@ function vCatalogue(){
 async function toggleStock(id,toIn){ try{ await api("PATCH","/api/items/"+id,{inStock:toIn}); delete state.vendorDetails[me.id]; await ensureMyCatalog(); toast(toIn?"In stock":"Out of stock"); render(); }catch(e){ toast(e.message,true); } }
 async function delProduct(id){ try{ await api("DELETE","/api/items/"+id); delete state.vendorDetails[me.id]; await ensureMyCatalog(); toast("Product removed"); render(); }catch(e){ toast(e.message,true); } }
 function vOffers(){
-  ensureMyCatalog().then(()=>{ if(route.view==="v_offers") render(); });
+  if(!state.vendorDetails[me.id]) ensureMyCatalog().then(()=>{ if(route.view==="v_offers") render(); });
   const offers=vendorMyOffers();
   let h='<div class="hd">Your offers</div><div class="sub2">Live deals restaurants see</div>';
   if(!offers.length) h+=emptyState("No offers yet","Tap + to create one.");
@@ -1063,10 +1063,15 @@ async function submitVerification(){
 }
 /* ===== Admin panel ===== */
 let adminPending=null;
+async function sendTestEmail(){
+  try{ const r=await api("POST","/api/admin/test-email"); toast(r.sent ? "Test email sent to "+r.to+" — check your inbox" : "Email is not configured yet (no RESEND_API_KEY on the server)", !r.sent); }
+  catch(e){ toast(e.message,true); }
+}
 async function loadAdmin(){ try{ const r=await api("GET","/api/admin/verifications"); adminPending=r.pending; }catch(e){ adminPending=[]; toast(e.message,true); } render(); }
 function adminBody(){
   if(adminPending===null){ loadAdmin(); return '<div class="empty"><div class="spinner" style="border-top-color:var(--brand);border-color:rgba(31,90,79,.2)"></div><div class="et" style="margin-top:14px">Loading reviews…</div></div>'; }
   let h='<div class="hd">Verification reviews</div><div class="sub2">Approve businesses onto the platform</div>';
+  h+='<div class="btnrow" style="margin-bottom:12px"><button class="btn ghost sm" onclick="sendTestEmail()">Send test email to me</button></div>';
   if(!adminPending.length) return h+emptyState("All caught up","No verifications waiting for review.");
   adminPending.forEach(v=>{
     h+='<div class="card"><div class="row"><div class="avatar grad" style="--g1:#3e6ca0;--g2:#264c75">'+(v.role==="vendor"?"🏪":"🍽️")+'</div>'+
