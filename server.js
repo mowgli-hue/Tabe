@@ -168,7 +168,7 @@ try { db.exec("ALTER TABLE payments ADD COLUMN proof TEXT"); } catch {}
 try { db.exec("ALTER TABLE users ADD COLUMN verification_status TEXT NOT NULL DEFAULT 'unverified'"); } catch {}
 
 // Platform admins (review verifications). Comma-separated emails.
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "mowgli@junglelabsworld.com")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "admin@vlink.systems,mowgli@junglelabsworld.com")
   .split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
 const isAdminUser = (u) => !!u && ADMIN_EMAILS.includes(String(u.email).toLowerCase());
 
